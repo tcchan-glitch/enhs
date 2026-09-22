@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>特教感官互動遊戲 - SEN Sensory Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        
+        body {
+            background-color: #000000;
+            color: #FFFFFF;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* 脈動吸引動畫 - 專為視障引導設計 */
+        @keyframes pulse-glow {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 230, 0, 0.9);
+            }
+            70% {
+                transform: scale(1.1);
+                box-shadow: 0 0 0 50px rgba(255, 230, 0, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 230, 0, 0);
+            }
+        }
+
+        .animate-target {
+            animation: pulse-glow 1.8s infinite ease-in-out;
+        }
+
+        /* 光芒擴散動畫 */
+        @keyframes ripple {
+            0% {
+                width: 0px;
+                height: 0px;
+                opacity: 1;
+            }
+            100% {
+                width: 500px;
+                height: 500px;
+                opacity: 0;
+            }
+        }
+
+        .ripple-effect {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            animation: ripple 0.8s ease-out forwards;
+        }
+
+        /* 全螢幕按鈕閃爍效果 */
+        .high-contrast-btn {
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+            border: 4px solid #FFFFFF;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen w-screen relative">
+
+    <!-- 頂部控制面板：超大高對比選單與語音切換 -->
+    <header class="bg-black border-b-4 border-yellow-400 p-2 sm:p-4 flex flex-wrap justify-between items-center z-50 gap-2 shrink-0">
+        <div class="flex items-center space-x-2 sm:space-x-4">
+            <button id="btn-game1" onclick="switchGame(1)" class="high-contrast-btn bg-yellow-400 hover:bg-yellow-300 text-black font-extrabold text-xl sm:text-3xl px-4 py-3 rounded-2xl transition duration-150 active:scale-95 flex items-center">
+                🎯 1. 追圓點
+            </button>
+            <button id="btn-game2" onclick="switchGame(2)" class="high-contrast-btn bg-cyan-400 hover:bg-cyan-300 text-black font-extrabold text-xl sm:text-3xl px-4 py-3 rounded-2xl transition duration-150 active:scale-95 flex items-center">
+                ✋ 2. 掌心發光
+            </button>
+        </div>
+
+        <div class="flex items-center space-x-2 sm:space-x-3">
+            <!-- 語言切換 -->
+            <button id="btn-lang" onclick="toggleLanguage()" class="bg-purple-600 hover:bg-purple-500 text-white border-2 border-white font-bold text-lg sm:text-2xl px-3 py-2 rounded-xl">
+                🗣️ <span id="lang-text">廣東話</span>
+            </button>
+            <!-- 全螢幕按鈕 -->
+            <button onclick="toggleFullScreen()" class="bg-green-600 hover:bg-green-500 text-white border-2 border-white font-bold text-lg sm:text-2xl px-3 py-2 rounded-xl">
+                📺 全螢幕
+            </button>
+        </div>
+    </header>
+
+    <!-- 主要遊戲區域 -->
+    <main id="game-container" class="relative flex-1 w-full h-full bg-black overflow-hidden cursor-pointer">
+        
+        <!-- 提示啟動互動語音覆蓋層 (防止瀏覽器 Autoplay 阻擋) -->
+        <div id="start-overlay" class="absolute inset-0 bg-black/95 z-40 flex flex-col items-center justify-center p-6 text-center">
+            <h1 class="text-4xl sm:text-6xl font-extrabold text-yellow-300 mb-8 leading-tight">
+                🌟 歡迎來到感官遊戲 🌟
+            </h1>
+            <p class="text-2xl sm:text-3xl text-white mb-10 max-w-xl">
+                請點擊下方超大按鈕開始遊戲！
+            </p>
+            <button onclick="initAudioAndStart()" class="bg-red-600 hover:bg-red-500 text-white font-black text-3xl sm:text-5xl px-12 py-8 rounded-full border-8 border-yellow-300 shadow-2xl transform active:scale-90 transition">
+                👉 點我開始！ 👈
+            </button>
+        </div>
+
+        <!-- 遊戲一：手指追碰大圓點 -->
+        <div id="game1-layer" class="relative w-full h-full hidden">
+            <!-- 得分計數器 -->
+            <div class="absolute top-4 left-4 bg-yellow-400 text-black border-4 border-white font-black text-2xl sm:text-4xl px-6 py-2 rounded-2xl shadow-lg pointer-events-none z-10">
+                摸到次數：<span id="score-count">0</span>
+            </div>
+
+            <!-- 超大高對比目標圓點 -->
+            <div id="target-dot" class="absolute rounded-full animate-target flex items-center justify-center font-black cursor-pointer select-none" style="width: 180px; height: 180px; background-color: #FFED4A; border: 8px solid #FFFFFF;">
+                <span class="text-black text-3xl font-extrabold pointer-events-none">摸我！</span>
+            </div>
+        </div>
+
+        <!-- 遊戲二：手掌拍拍大發光 -->
+        <div id="game2-layer" class="relative w-full h-full hidden">
+            <div class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-cyan-400 text-black border-4 border-white font-black text-xl sm:text-3xl px-6 py-2 rounded-2xl shadow-lg pointer-events-none z-10 text-center">
+                ✋ 用手掌按壓或拍打螢幕發光！
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        /* === 特教遊戲系統狀態 === */
+        let currentGame = 1;
+        let score = 0;
+        let currentLang = 'zh-HK'; // 預設廣東話, 可切換 'zh-TW' / 'zh-CN'
+        let audioCtx = null;
+        let speechSynth = window.speechSynthesis;
+        let callTargetTimer = null;
+        let isAudioInitialized = false;
+
+        // 高對比顏色清單 (針對視障學生設計)
+        const highContrastColors = [
+            { bg: '#FFED4A', text: '#000000', name: '黃色' }, // 鮮黃
+            { bg: '#FF3838', text: '#FFFFFF', name: '紅色' }, // 鮮紅
+            { bg: '#38EF7D', text: '#000000', name: '綠色' }, // 鮮綠
+            { bg: '#17EAD9', text: '#000000', name: '藍色' }, // 青藍
+            { bg: '#FF7676', text: '#000000', name: '粉紅' }, // 橙粉
+            { bg: '#FFFFFF', text: '#000000', name: '白色' }  // 純白
+        ];
+
+        /* === 語音提示 (TTS - SpeechSynthesis) === */
+        function speak(text, priority = false) {
+            if (!speechSynth) return;
+            if (priority) {
+                speechSynth.cancel(); // 停止先前的語音
+            }
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = currentLang;
+            utterance.rate = 0.9;  // 稍微放慢速度，便於理解
+            utterance.pitch = 1.2; // 較高音調，增加親和力與吸引力
+            utterance.volume = 1.0;
+
+            // 尋找最適合的語音包
+            const voices = speechSynth.getVoices();
+            const matchingVoice = voices.find(v => v.lang.includes(currentLang) || v.lang.startsWith(currentLang.split('-')[0]));
+            if (matchingVoice) {
+                utterance.voice = matchingVoice;
+            }
+
+            speechSynth.speak(utterance);
+        }
+
+        /* === 切換語言 === */
+        function toggleLanguage() {
+            if (currentLang === 'zh-HK') {
+                currentLang = 'zh-TW';
+                document.getElementById('lang-text').innerText = '華語/國語';
+                speak('已切換為國語', true);
+            } else {
+                currentLang = 'zh-HK';
+                document.getElementById('lang-text').innerText = '廣東話';
+                speak('已切換為廣東話', true);
+            }
+        }
+
+        /* === 無障礙 Web Audio API 聲效合成器 === */
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            isAudioInitialized = true;
+        }
+
+        // 播放歡愉成功音效
+        function playSuccessSound() {
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+
+            // 旋律和絃：C5 -> E5 -> G5 -> C6
+            const notes = [523.25, 659.25, 783.99, 1046.50];
+            notes.forEach((freq, index) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now + index * 0.08);
+
+                gain.gain.setValueAtTime(0.3, now + index * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.08 + 0.3);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now + index * 0.08);
+                osc.stop(now + index * 0.08 + 0.35);
+            });
+        }
+
+        // 播放和絃樂音（用於手掌觸碰）
+        function playTone(xPercent, yPercent) {
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+
+            // 根據觸碰位置計算頻率 (五聲音階：C4, D4, E4, G4, A4, C5, D5, E5)
+            const pentatonicScale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00];
+            const scaleIndex = Math.floor(xPercent * pentatonicScale.length);
+            const freq = pentatonicScale[Math.min(scaleIndex, pentatonicScale.length - 1)];
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            // 音色可根據 Y 軸改變
+            osc.type = yPercent > 0.5 ? 'sine' : 'triangle';
+            osc.frequency.setValueAtTime(freq, now);
+
+            gain.gain.setValueAtTime(0.4, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(now);
+            osc.stop(now + 0.65);
+        }
+
+        /* === 遊戲初始化 === */
+        function initAudioAndStart() {
+            initAudio();
+            document.getElementById('start-overlay').classList.add('hidden');
+            switchGame(1);
+        }
+
+        /* === 遊戲切換 === */
+        function switchGame(gameNum) {
+            initAudio();
+            currentGame = gameNum;
+
+            const g1 = document.getElementById('game1-layer');
+            const g2 = document.getElementById('game2-layer');
+            const btn1 = document.getElementById('btn-game1');
+            const btn2 = document.getElementById('btn-game2');
+
+            // 清除圓點呼喚計時器
+            if (callTargetTimer) clearInterval(callTargetTimer);
+
+            if (gameNum === 1) {
+                g1.classList.remove('hidden');
+                g2.classList.add('hidden');
+                btn1.classList.add('ring-4', 'ring-white');
+                btn2.classList.remove('ring-4', 'ring-white');
+
+                const introMsg = currentLang === 'zh-HK' ? '遊戲一：追圓點。請摸摸螢幕上的大圓點！' : '游戏一：追圆点。请摸摸屏幕上的大圆点！';
+                speak(introMsg, true);
+                
+                resetTargetPosition();
+                // 設定每隔 5 秒如果沒觸碰，自動發聲吸引學生注意力
+                callTargetTimer = setInterval(() => {
+                    if (currentGame === 1) {
+                        const callMsg = currentLang === 'zh-HK' ? '我在這裡喔！快來摸摸我！' : '我在这里喔！快来摸摸我！';
+                        speak(callMsg);
+                    }
+                }, 5500);
+
+            } else {
+                g1.classList.add('hidden');
+                g2.classList.remove('hidden');
+                btn2.classList.add('ring-4', 'ring-white');
+                btn1.classList.remove('ring-4', 'ring-white');
+
+                const introMsg = currentLang === 'zh-HK' ? '遊戲二：掌心發光。用手掌或手指按螢幕發光！' : '游戏二：掌心发光。用手掌或手指按屏幕发光！';
+                speak(introMsg, true);
+            }
+        }
+
+        /* === 遊戲一邏輯：手指追碰大圓點 === */
+        const targetDot = document.getElementById('target-dot');
+        const scoreDisplay = document.getElementById('score-count');
+
+        function resetTargetPosition() {
+            const container = document.getElementById('game-container');
+            const headerHeight = 90;
+            const maxX = container.clientWidth - 200;
+            const maxY = container.clientHeight - 200;
+
+            // 隨機計算位置
+            const randomX = Math.max(20, Math.floor(Math.random() * maxX));
+            const randomY = Math.max(20, Math.floor(Math.random() * maxY));
+
+            // 隨機選取高對比度色彩
+            const colorObj = highContrastColors[Math.floor(Math.random() * highContrastColors.length)];
+
+            targetDot.style.left = `${randomX}px`;
+            targetDot.style.top = `${randomY}px`;
+            targetDot.style.backgroundColor = colorObj.bg;
+            targetDot.style.color = colorObj.text;
+        }
+
+        function handleTargetHit(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            score++;
+            scoreDisplay.innerText = score;
+
+            // 聲效與動畫
+            playSuccessSound();
+
+            // 觸碰擴散光圈視覺反饋
+            createRipple(e.clientX || (e.touches && e.touches[0].clientX), e.clientY || (e.touches && e.touches[0].clientY));
+
+            // 獎勵鼓勵語句清單
+            const praiseListCantonese = ['好棒喔！摸到了！', '太厲害了！', '摸得好準！', '真棒！繼續加油！', '哇！好厲害！'];
+            const praiseListMandarin = ['好棒喔！摸到了！', '太厉害了！', '摸得好准！', '真棒！继续加油！', '哇！好厉害！'];
+            
+            const praiseList = currentLang === 'zh-HK' ? praiseListCantonese : praiseListMandarin;
+            const randomPraise = praiseList[Math.floor(Math.random() * praiseList.length)];
+            
+            speak(randomPraise, true);
+
+            // 重新放置圓點
+            resetTargetPosition();
+        }
+
+        // 支援 Touch 與 Click 事件 (超大邊界反應)
+        targetDot.addEventListener('pointerdown', handleTargetHit);
+
+        /* === 遊戲二邏輯：手掌拍拍大發光 === */
+        const gameContainer = document.getElementById('game-container');
+
+        // 處理手掌/多點觸控拍打
+        function handlePalmTouch(e) {
+            if (currentGame !== 2) return;
+            e.preventDefault();
+
+            const rect = gameContainer.getBoundingClientRect();
+            
+            // 多點觸控支援 (Multi-touch)
+            let touches = e.touches;
+            if (!touches || touches.length === 0) {
+                // 滑鼠事件備用
+                touches = [{ clientX: e.clientX, clientY: e.clientY }];
+            }
+
+            for (let i = 0; i < touches.length; i++) {
+                const touch = touches[i];
+                const x = touch.clientX - rect.left;
+                const y = touch.clientY - rect.top;
+
+                const xPercent = Math.max(0, Math.min(1, x / rect.width));
+                const yPercent = Math.max(0, Math.min(1, y / rect.height));
+
+                // 播放音律
+                playTone(xPercent, yPercent);
+
+                // 產生高彩度閃光與擴散波紋
+                createGlowEffect(touch.clientX, touch.clientY);
+            }
+
+            // 隨機播放讚美語句 (防止過度頻繁)
+            if (Math.random() < 0.25) {
+                const glowPraisesCantonese = ['哇！亮起來了！', '好漂亮的光喔！', '再拍拍看！', '好多美麗的色彩！'];
+                const glowPraisesMandarin = ['哇！亮起来了！', '好漂亮的光喔！', '再拍拍看！', '好多美丽的色彩！'];
+                const praiseList = currentLang === 'zh-HK' ? glowPraisesCantonese : glowPraisesMandarin;
+                speak(praiseList[Math.floor(Math.random() * praiseList.length)]);
+            }
+        }
+
+        // 產生發光特效
+        function createGlowEffect(x, y) {
+            const glow = document.createElement('div');
+            glow.className = 'ripple-effect';
+            glow.style.left = `${x}px`;
+            glow.style.top = `${y}px`;
+
+            // 隨機亮麗色彩
+            const colors = ['#FF0055', '#00E5FF', '#FFEB3B', '#76FF03', '#E040FB', '#FFFFFF'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            glow.style.background = `radial-gradient(circle, ${color} 0%, rgba(255,255,255,0.8) 40%, rgba(0,0,0,0) 80%)`;
+            glow.style.boxShadow = `0 0 50px ${color}, 0 0 100px ${color}`;
+
+            gameContainer.appendChild(glow);
+
+            setTimeout(() => {
+                glow.remove();
+            }, 800);
+        }
+
+        function createRipple(x, y) {
+            if (!x || !y) return;
+            createGlowEffect(x, y);
+        }
+
+        // 註冊多種觸控與點擊事件
+        gameContainer.addEventListener('touchstart', (e) => {
+            if (currentGame === 2) handlePalmTouch(e);
+        }, { passive: false });
+
+        gameContainer.addEventListener('mousedown', (e) => {
+            if (currentGame === 2 && e.target === gameContainer) {
+                handlePalmTouch(e);
+            }
+        });
+
+        /* === 全螢幕切換功能 === */
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch((err) => {
+                    console.log(`全螢幕啟動失敗: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        // 視窗大小改變時校正圓點位置
+        window.addEventListener('resize', () => {
+            if (currentGame === 1) {
+                resetTargetPosition();
+            }
+        });
+    </script>
+</body>
+</html>
