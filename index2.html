@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>感官互動遊戲 - Pure Cantonese Concise Version</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        
+        body {
+            background-color: #000000;
+            color: #FFFFFF;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* 高對比光圈脈動動畫 - 視覺引導 */
+        @keyframes pulse-glow {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 230, 0, 0.9);
+            }
+            70% {
+                transform: scale(1.1);
+                box-shadow: 0 0 0 50px rgba(255, 230, 0, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 230, 0, 0);
+            }
+        }
+
+        .animate-target {
+            animation: pulse-glow 1.8s infinite ease-in-out;
+        }
+
+        /* 手掌圖片閃耀脈動 */
+        @keyframes palm-pulse {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+                filter: drop-shadow(0 0 25px #00E5FF);
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.1);
+                filter: drop-shadow(0 0 55px #FFEA00);
+            }
+        }
+
+        .animate-palm {
+            animation: palm-pulse 2s infinite ease-in-out;
+        }
+
+        /* 炫彩光芒擴散動畫 */
+        @keyframes ripple {
+            0% {
+                width: 0px;
+                height: 0px;
+                opacity: 1;
+            }
+            100% {
+                width: 650px;
+                height: 650px;
+                opacity: 0;
+            }
+        }
+
+        .ripple-effect {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            animation: ripple 0.85s ease-out forwards;
+        }
+
+        .high-contrast-btn {
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+            border: 4px solid #FFFFFF;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen w-screen relative">
+
+    <!-- 頂部控制面板 -->
+    <header class="bg-black border-b-4 border-yellow-400 p-3 flex justify-between items-center z-50 shrink-0">
+        <div class="flex items-center space-x-3">
+            <span id="stage-badge" class="bg-yellow-400 text-black font-black text-2xl sm:text-3xl px-4 py-2 rounded-2xl border-2 border-white">
+                階段一：手指摸圓點
+            </span>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <!-- 重新開始按鈕 -->
+            <button onclick="restartGame()" class="high-contrast-btn bg-red-600 hover:bg-red-500 text-white font-extrabold text-xl sm:text-2xl px-4 py-2 rounded-2xl transition active:scale-95">
+                🔄 重新開始
+            </button>
+            <!-- 全螢幕按鈕 -->
+            <button onclick="toggleFullScreen()" class="high-contrast-btn bg-green-600 hover:bg-green-500 text-white font-extrabold text-xl sm:text-2xl px-4 py-2 rounded-2xl transition active:scale-95">
+                📺 全螢幕
+            </button>
+        </div>
+    </header>
+
+    <!-- 主要遊戲區域 -->
+    <main id="game-container" class="relative flex-1 w-full h-full bg-black overflow-hidden cursor-pointer select-none">
+        
+        <!-- 啟動覆蓋頁面（遵循瀏覽器音訊自動播放規則） -->
+        <div id="start-overlay" class="absolute inset-0 bg-black/95 z-40 flex flex-col items-center justify-center p-6 text-center">
+            <h1 class="text-4xl sm:text-6xl font-extrabold text-yellow-300 mb-8 leading-tight">
+                🌟 感官互動遊戲 🌟
+            </h1>
+            <p class="text-2xl sm:text-4xl text-white mb-10 max-w-xl font-bold">
+                準備開始。
+            </p>
+            <button onclick="initAudioAndStart()" class="bg-red-600 hover:bg-red-500 text-white font-black text-3xl sm:text-5xl px-12 py-8 rounded-full border-8 border-yellow-300 shadow-2xl transform active:scale-90 transition">
+                👉 開始遊戲 👈
+            </button>
+        </div>
+
+        <!-- 階段一：手指追碰大圓點 -->
+        <div id="stage1-layer" class="relative w-full h-full">
+            <!-- 次數提示 -->
+            <div class="absolute top-4 left-4 bg-yellow-400 text-black border-4 border-white font-black text-2xl sm:text-4xl px-6 py-2 rounded-2xl shadow-lg pointer-events-none z-10">
+                次數：<span id="score-count">0</span> / 5
+            </div>
+
+            <!-- 超大高對比目標圓點 (純圓點，無文字) -->
+            <div id="target-dot" class="absolute rounded-full animate-target cursor-pointer select-none" style="width: 200px; height: 200px; background-color: #FFED4A; border: 8px solid #FFFFFF;">
+            </div>
+        </div>
+
+        <!-- 階段二：手掌拍拍大發光 -->
+        <div id="stage2-layer" class="relative w-full h-full hidden">
+            <!-- 提示標題 (完全無助語詞) -->
+            <div class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-cyan-400 text-black border-4 border-white font-black text-2xl sm:text-4xl px-8 py-3 rounded-2xl shadow-lg pointer-events-none z-10 text-center w-11/12 max-w-3xl">
+                ✋ 用手掌拍拍螢幕
+            </div>
+
+            <!-- 次數提示 -->
+            <div class="absolute top-4 left-4 bg-cyan-400 text-black border-4 border-white font-black text-2xl sm:text-4xl px-6 py-2 rounded-2xl shadow-lg pointer-events-none z-10">
+                次數：<span id="stage2-count">0</span> / 5
+            </div>
+
+            <!-- 正中間五隻手指分明的高對比大手掌 SVG -->
+            <div id="center-palm" class="absolute top-1/2 left-1/2 animate-palm pointer-events-none" style="width: 320px; height: 320px;">
+                <svg viewBox="0 0 200 220" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-2xl">
+                    <!-- 五指清晰分明的大手掌 (亮黃底、粗白外框) -->
+                    <g stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="#FFED4A">
+                        <!-- 大拇指 Thumb -->
+                        <path d="M 42 135 C 22 120 12 100 22 88 C 32 76 50 92 62 112" />
+                        <!-- 食指 Index finger -->
+                        <path d="M 68 105 L 68 30 C 68 16 84 16 84 30 L 84 100" />
+                        <!-- 中指 Middle finger -->
+                        <path d="M 92 98 L 92 18 C 92 4 108 4 108 18 L 108 98" />
+                        <!-- 無名指 Ring finger -->
+                        <path d="M 116 100 L 116 28 C 116 14 132 14 132 28 L 132 105" />
+                        <!-- 尾指 Little finger -->
+                        <path d="M 140 112 L 140 50 C 140 38 154 38 154 50 L 154 125" />
+                        <!-- 掌心與手腕 Base -->
+                        <path d="M 42 135 C 42 130 62 105 68 105 L 154 125 C 165 145 160 185 145 200 C 130 212 70 212 55 200 C 42 185 38 155 42 135 Z" />
+                    </g>
+                    <!-- 掌紋視覺輔助線 -->
+                    <path d="M 52 145 C 80 160 110 150 145 135" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+                    <path d="M 62 170 C 90 185 120 175 140 160" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+                </svg>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        /* === 遊戲狀態控制 === */
+        let currentStage = 1;
+        let score = 0;
+        const TARGET_SCORE = 5;
+        let stage2TapCount = 0;
+        const STAGE2_TARGET_TAPS = 5; // 階段二拍打 5 次即可通關
+        let audioCtx = null;
+        let speechSynth = window.speechSynthesis;
+        let cantoneseVoice = null;
+
+        // 高對比鮮艷色彩組合 (專為視障學生設計)
+        const highContrastColors = [
+            { bg: '#FFED4A', text: '#000000' }, // 鮮黃
+            { bg: '#FF3838', text: '#FFFFFF' }, // 鮮紅
+            { bg: '#38EF7D', text: '#000000' }, // 鮮綠
+            { bg: '#17EAD9', text: '#000000' }, // 鮮藍
+            { bg: '#FF7676', text: '#000000' }, // 鮮粉
+            { bg: '#FFFFFF', text: '#000000' }  // 純白
+        ];
+
+        /* === 精準加載廣東話語音引擎 (zh-HK) === */
+        function loadCantoneseVoice() {
+            if (!speechSynth) return;
+            const voices = speechSynth.getVoices();
+            cantoneseVoice = voices.find(v => 
+                v.lang === 'zh-HK' || 
+                v.lang === 'yue-HK' || 
+                v.lang.includes('zh-HK') || 
+                v.lang.includes('Cantonese') || 
+                v.name.includes('Sin-Ji') || 
+                v.name.includes('Hiuga') ||
+                v.name.includes('Cantonese')
+            );
+        }
+
+        if (speechSynth) {
+            loadCantoneseVoice();
+            if (speechSynth.onvoiceschanged !== undefined) {
+                speechSynth.onvoiceschanged = loadCantoneseVoice;
+            }
+        }
+
+        /* === 廣東話語音播報（完全去除所有助語詞） === */
+        function speakCantonese(text, priority = false) {
+            if (!speechSynth) return;
+            
+            if (priority) {
+                speechSynth.cancel(); // 優先發聲，打斷前語音
+            }
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-HK';
+            utterance.rate = 0.85;  // 慢速朗讀，方便智障/視障學生吸收
+            utterance.pitch = 1.2;  // 溫和清晰語調
+            utterance.volume = 1.0;
+
+            if (cantoneseVoice) {
+                utterance.voice = cantoneseVoice;
+            }
+
+            speechSynth.speak(utterance);
+        }
+
+        /* === Web Audio API 和絃聲音產生器 === */
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // 觸碰圓點成功和絃音效
+        function playSuccessSound() {
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+            notes.forEach((freq, index) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now + index * 0.08);
+
+                gain.gain.setValueAtTime(0.35, now + index * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.08 + 0.35);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now + index * 0.08);
+                osc.stop(now + index * 0.08 + 0.4);
+            });
+        }
+
+        // 拍打發光五聲階樂音
+        function playTone(xPercent, yPercent) {
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+
+            const pentatonicScale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00];
+            const scaleIndex = Math.floor(xPercent * pentatonicScale.length);
+            const freq = pentatonicScale[Math.min(scaleIndex, pentatonicScale.length - 1)];
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = yPercent > 0.5 ? 'sine' : 'triangle';
+            osc.frequency.setValueAtTime(freq, now);
+
+            gain.gain.setValueAtTime(0.4, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(now);
+            osc.stop(now + 0.8);
+        }
+
+        /* === 遊戲流程與事件控制 === */
+        function initAudioAndStart() {
+            initAudio();
+            document.getElementById('start-overlay').classList.add('hidden');
+            restartGame();
+        }
+
+        function restartGame() {
+            initAudio();
+            score = 0;
+            stage2TapCount = 0;
+            currentStage = 1;
+            document.getElementById('score-count').innerText = score;
+            document.getElementById('stage2-count').innerText = stage2TapCount;
+
+            // 重置階段圖層
+            document.getElementById('stage1-layer').classList.remove('hidden');
+            document.getElementById('stage2-layer').classList.add('hidden');
+            document.getElementById('stage-badge').innerText = '階段一：手指摸圓點';
+            document.getElementById('stage-badge').className = 'bg-yellow-400 text-black font-black text-2xl sm:text-3xl px-4 py-2 rounded-2xl border-2 border-white';
+
+            resetTargetPosition();
+
+            // 開場廣東話語音（極簡、無助語詞）
+            speakCantonese('準備開始。用手指摸圓點。', true);
+        }
+
+        /* === 階段一：手指觸碰圓點 === */
+        const targetDot = document.getElementById('target-dot');
+        const scoreDisplay = document.getElementById('score-count');
+
+        function resetTargetPosition() {
+            const container = document.getElementById('game-container');
+            const maxX = container.clientWidth - 220;
+            const maxY = container.clientHeight - 220;
+
+            const randomX = Math.max(30, Math.floor(Math.random() * maxX));
+            const randomY = Math.max(30, Math.floor(Math.random() * maxY));
+
+            const colorObj = highContrastColors[Math.floor(Math.random() * highContrastColors.length)];
+
+            targetDot.style.left = `${randomX}px`;
+            targetDot.style.top = `${randomY}px`;
+            targetDot.style.backgroundColor = colorObj.bg;
+            targetDot.style.color = colorObj.text;
+        }
+
+        function handleTargetHit(e) {
+            if (currentStage !== 1) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            score++;
+            scoreDisplay.innerText = score;
+
+            playSuccessSound();
+            createGlowEffect(e.clientX || (e.touches && e.touches[0].clientX), e.clientY || (e.touches && e.touches[0].clientY));
+
+            if (score >= TARGET_SCORE) {
+                currentStage = 2;
+                setTimeout(() => {
+                    transitionToStage2();
+                }, 400);
+            } else {
+                // 簡潔肯定語句（完全無助語詞）
+                const praiseList = ['成功。', '正確。', '做得好。'];
+                const randomPraise = praiseList[Math.floor(Math.random() * praiseList.length)];
+                speakCantonese(randomPraise, true);
+
+                resetTargetPosition();
+            }
+        }
+
+        targetDot.addEventListener('pointerdown', handleTargetHit);
+
+        /* === 切換到階段二 === */
+        function transitionToStage2() {
+            document.getElementById('stage1-layer').classList.add('hidden');
+            document.getElementById('stage2-layer').classList.remove('hidden');
+            document.getElementById('stage-badge').innerText = '階段二：手掌拍拍發光';
+            document.getElementById('stage-badge').className = 'bg-cyan-400 text-black font-black text-2xl sm:text-3xl px-4 py-2 rounded-2xl border-2 border-white';
+
+            // 簡潔過場指示語音（完全無助語詞）
+            speakCantonese('用手掌拍拍螢幕。', true);
+        }
+
+        /* === 階段二：手掌拍打發光 (多點觸控) === */
+        const gameContainer = document.getElementById('game-container');
+
+        function handlePalmTouch(e) {
+            if (currentStage !== 2) return;
+            e.preventDefault();
+
+            const rect = gameContainer.getBoundingClientRect();
+            let touches = e.touches;
+
+            if (!touches || touches.length === 0) {
+                touches = [{ clientX: e.clientX, clientY: e.clientY }];
+            }
+
+            stage2TapCount++;
+            document.getElementById('stage2-count').innerText = Math.min(stage2TapCount, STAGE2_TARGET_TAPS);
+
+            for (let i = 0; i < touches.length; i++) {
+                const touch = touches[i];
+                const x = touch.clientX - rect.left;
+                const y = touch.clientY - rect.top;
+
+                const xPercent = Math.max(0, Math.min(1, x / rect.width));
+                const yPercent = Math.max(0, Math.min(1, y / rect.height));
+
+                playTone(xPercent, yPercent);
+                createGlowEffect(touch.clientX, touch.clientY);
+            }
+
+            if (stage2TapCount >= STAGE2_TARGET_TAPS) {
+                // 通關結尾（完全無助語詞）
+                speakCantonese('完成遊戲。', true);
+            } else {
+                // 拍打過程極簡語音
+                const glowPraises = ['發光。', '成功。', '做得好。'];
+                speakCantonese(glowPraises[Math.floor(Math.random() * glowPraises.length)]);
+            }
+        }
+
+        function createGlowEffect(x, y) {
+            if (!x || !y) return;
+            const glow = document.createElement('div');
+            glow.className = 'ripple-effect';
+            glow.style.left = `${x}px`;
+            glow.style.top = `${y}px`;
+
+            const colors = ['#FF0055', '#00E5FF', '#FFEB3B', '#76FF03', '#E040FB', '#FFFFFF'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            glow.style.background = `radial-gradient(circle, ${color} 0%, rgba(255,255,255,0.9) 40%, rgba(0,0,0,0) 80%)`;
+            glow.style.boxShadow = `0 0 60px ${color}, 0 0 120px ${color}`;
+
+            gameContainer.appendChild(glow);
+
+            setTimeout(() => {
+                glow.remove();
+            }, 850);
+        }
+
+        // 綁定觸控與點擊
+        gameContainer.addEventListener('touchstart', (e) => {
+            if (currentStage === 2) handlePalmTouch(e);
+        }, { passive: false });
+
+        gameContainer.addEventListener('mousedown', (e) => {
+            if (currentStage === 2 && e.target === gameContainer) {
+                handlePalmTouch(e);
+            }
+        });
+
+        /* === 全螢幕切換功能 === */
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch((err) => {
+                    console.log(`無法開啟全螢幕: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>感官互動遊戲 - Pure Cantonese Concise Version</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        
+        body {
+            background-color: #000000;
+            color: #FFFFFF;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* 高對比光圈脈動動畫 - 視覺引導 */
+        @keyframes pulse-glow {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 230, 0, 0.9);
+            }
+            70% {
+                transform: scale(1.1);
+                box-shadow: 0 0 0 50px rgba(255, 230, 0, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 230, 0, 0);
+            }
+        }
+
+        .animate-target {
+            animation: pulse-glow 1.8s infinite ease-in-out;
+        }
+
+        /* 手掌圖片閃耀脈動 */
+        @keyframes palm-pulse {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+                filter: drop-shadow(0 0 25px #00E5FF);
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.1);
+                filter: drop-shadow(0 0 55px #FFEA00);
+            }
+        }
+
+        .animate-palm {
+            animation: palm-pulse 2s infinite ease-in-out;
+        }
+
+        /* 炫彩光芒擴散動畫 */
+        @keyframes ripple {
+            0% {
+                width: 0px;
+                height: 0px;
+                opacity: 1;
+            }
+            100% {
+                width: 650px;
+                height: 650px;
+                opacity: 0;
+            }
+        }
+
+        .ripple-effect {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            animation: ripple 0.85s ease-out forwards;
+        }
+
+        .high-contrast-btn {
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+            border: 4px solid #FFFFFF;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen w-screen relative">
+
+    <!-- 頂部控制面板 -->
+    <header class="bg-black border-b-4 border-yellow-400 p-3 flex justify-between items-center z-50 shrink-0">
+        <div class="flex items-center space-x-3">
+            <span id="stage-badge" class="bg-yellow-400 text-black font-black text-2xl sm:text-3xl px-4 py-2 rounded-2xl border-2 border-white">
+                階段一：手指摸圓點
+            </span>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <!-- 重新開始按鈕 -->
+            <button onclick="restartGame()" class="high-contrast-btn bg-red-600 hover:bg-red-500 text-white font-extrabold text-xl sm:text-2xl px-4 py-2 rounded-2xl transition active:scale-95">
+                🔄 重新開始
+            </button>
+            <!-- 全螢幕按鈕 -->
+            <button onclick="toggleFullScreen()" class="high-contrast-btn bg-green-600 hover:bg-green-500 text-white font-extrabold text-xl sm:text-2xl px-4 py-2 rounded-2xl transition active:scale-95">
+                📺 全螢幕
+            </button>
+        </div>
+    </header>
+
+    <!-- 主要遊戲區域 -->
+    <main id="game-container" class="relative flex-1 w-full h-full bg-black overflow-hidden cursor-pointer select-none">
+        
+        <!-- 啟動覆蓋頁面（遵循瀏覽器音訊自動播放規則） -->
+        <div id="start-overlay" class="absolute inset-0 bg-black/95 z-40 flex flex-col items-center justify-center p-6 text-center">
+            <h1 class="text-4xl sm:text-6xl font-extrabold text-yellow-300 mb-8 leading-tight">
+                🌟 感官互動遊戲 🌟
+            </h1>
+            <p class="text-2xl sm:text-4xl text-white mb-10 max-w-xl font-bold">
+                準備開始。
+            </p>
+            <button onclick="initAudioAndStart()" class="bg-red-600 hover:bg-red-500 text-white font-black text-3xl sm:text-5xl px-12 py-8 rounded-full border-8 border-yellow-300 shadow-2xl transform active:scale-90 transition">
+                👉 開始遊戲 👈
+            </button>
+        </div>
+
+        <!-- 階段一：手指追碰大圓點 -->
+        <div id="stage1-layer" class="relative w-full h-full">
+            <!-- 次數提示 -->
+            <div class="absolute top-4 left-4 bg-yellow-400 text-black border-4 border-white font-black text-2xl sm:text-4xl px-6 py-2 rounded-2xl shadow-lg pointer-events-none z-10">
+                次數：<span id="score-count">0</span> / 5
+            </div>
+
+            <!-- 超大高對比目標圓點 (純圓點，無文字) -->
+            <div id="target-dot" class="absolute rounded-full animate-target cursor-pointer select-none" style="width: 200px; height: 200px; background-color: #FFED4A; border: 8px solid #FFFFFF;">
+            </div>
+        </div>
+
+        <!-- 階段二：手掌拍拍大發光 -->
+        <div id="stage2-layer" class="relative w-full h-full hidden">
+            <!-- 提示標題 (完全無助語詞) -->
+            <div class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-cyan-400 text-black border-4 border-white font-black text-2xl sm:text-4xl px-8 py-3 rounded-2xl shadow-lg pointer-events-none z-10 text-center w-11/12 max-w-3xl">
+                ✋ 用手掌拍拍螢幕
+            </div>
+
+            <!-- 次數提示 -->
+            <div class="absolute top-4 left-4 bg-cyan-400 text-black border-4 border-white font-black text-2xl sm:text-4xl px-6 py-2 rounded-2xl shadow-lg pointer-events-none z-10">
+                次數：<span id="stage2-count">0</span> / 5
+            </div>
+
+            <!-- 正中間五隻手指分明的高對比大手掌 SVG -->
+            <div id="center-palm" class="absolute top-1/2 left-1/2 animate-palm pointer-events-none" style="width: 320px; height: 320px;">
+                <svg viewBox="0 0 200 220" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-2xl">
+                    <!-- 五指清晰分明的大手掌 (亮黃底、粗白外框) -->
+                    <g stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="#FFED4A">
+                        <!-- 大拇指 Thumb -->
+                        <path d="M 42 135 C 22 120 12 100 22 88 C 32 76 50 92 62 112" />
+                        <!-- 食指 Index finger -->
+                        <path d="M 68 105 L 68 30 C 68 16 84 16 84 30 L 84 100" />
+                        <!-- 中指 Middle finger -->
+                        <path d="M 92 98 L 92 18 C 92 4 108 4 108 18 L 108 98" />
+                        <!-- 無名指 Ring finger -->
+                        <path d="M 116 100 L 116 28 C 116 14 132 14 132 28 L 132 105" />
+                        <!-- 尾指 Little finger -->
+                        <path d="M 140 112 L 140 50 C 140 38 154 38 154 50 L 154 125" />
+                        <!-- 掌心與手腕 Base -->
+                        <path d="M 42 135 C 42 130 62 105 68 105 L 154 125 C 165 145 160 185 145 200 C 130 212 70 212 55 200 C 42 185 38 155 42 135 Z" />
+                    </g>
+                    <!-- 掌紋視覺輔助線 -->
+                    <path d="M 52 145 C 80 160 110 150 145 135" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+                    <path d="M 62 170 C 90 185 120 175 140 160" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+                </svg>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        /* === 遊戲狀態控制 === */
+        let currentStage = 1;
+        let score = 0;
+        const TARGET_SCORE = 5;
+        let stage2TapCount = 0;
+        const STAGE2_TARGET_TAPS = 5; // 階段二拍打 5 次即可通關
+        let audioCtx = null;
+        let speechSynth = window.speechSynthesis;
+        let cantoneseVoice = null;
+
+        // 高對比鮮艷色彩組合 (專為視障學生設計)
+        const highContrastColors = [
+            { bg: '#FFED4A', text: '#000000' }, // 鮮黃
+            { bg: '#FF3838', text: '#FFFFFF' }, // 鮮紅
+            { bg: '#38EF7D', text: '#000000' }, // 鮮綠
+            { bg: '#17EAD9', text: '#000000' }, // 鮮藍
+            { bg: '#FF7676', text: '#000000' }, // 鮮粉
+            { bg: '#FFFFFF', text: '#000000' }  // 純白
+        ];
+
+        /* === 精準加載廣東話語音引擎 (zh-HK) === */
+        function loadCantoneseVoice() {
+            if (!speechSynth) return;
+            const voices = speechSynth.getVoices();
+            cantoneseVoice = voices.find(v => 
+                v.lang === 'zh-HK' || 
+                v.lang === 'yue-HK' || 
+                v.lang.includes('zh-HK') || 
+                v.lang.includes('Cantonese') || 
+                v.name.includes('Sin-Ji') || 
+                v.name.includes('Hiuga') ||
+                v.name.includes('Cantonese')
+            );
+        }
+
+        if (speechSynth) {
+            loadCantoneseVoice();
+            if (speechSynth.onvoiceschanged !== undefined) {
+                speechSynth.onvoiceschanged = loadCantoneseVoice;
+            }
+        }
+
+        /* === 廣東話語音播報（完全去除所有助語詞） === */
+        function speakCantonese(text, priority = false) {
+            if (!speechSynth) return;
+            
+            if (priority) {
+                speechSynth.cancel(); // 優先發聲，打斷前語音
+            }
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-HK';
+            utterance.rate = 0.85;  // 慢速朗讀，方便智障/視障學生吸收
+            utterance.pitch = 1.2;  // 溫和清晰語調
+            utterance.volume = 1.0;
+
+            if (cantoneseVoice) {
+                utterance.voice = cantoneseVoice;
+            }
+
+            speechSynth.speak(utterance);
+        }
+
+        /* === Web Audio API 和絃聲音產生器 === */
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // 觸碰圓點成功和絃音效
+        function playSuccessSound() {
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+            notes.forEach((freq, index) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now + index * 0.08);
+
+                gain.gain.setValueAtTime(0.35, now + index * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.08 + 0.35);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now + index * 0.08);
+                osc.stop(now + index * 0.08 + 0.4);
+            });
+        }
+
+        // 拍打發光五聲階樂音
+        function playTone(xPercent, yPercent) {
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+
+            const pentatonicScale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00];
+            const scaleIndex = Math.floor(xPercent * pentatonicScale.length);
+            const freq = pentatonicScale[Math.min(scaleIndex, pentatonicScale.length - 1)];
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = yPercent > 0.5 ? 'sine' : 'triangle';
+            osc.frequency.setValueAtTime(freq, now);
+
+            gain.gain.setValueAtTime(0.4, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(now);
+            osc.stop(now + 0.8);
+        }
+
+        /* === 遊戲流程與事件控制 === */
+        function initAudioAndStart() {
+            initAudio();
+            document.getElementById('start-overlay').classList.add('hidden');
+            restartGame();
+        }
+
+        function restartGame() {
+            initAudio();
+            score = 0;
+            stage2TapCount = 0;
+            currentStage = 1;
+            document.getElementById('score-count').innerText = score;
+            document.getElementById('stage2-count').innerText = stage2TapCount;
+
+            // 重置階段圖層
+            document.getElementById('stage1-layer').classList.remove('hidden');
+            document.getElementById('stage2-layer').classList.add('hidden');
+            document.getElementById('stage-badge').innerText = '階段一：手指摸圓點';
+            document.getElementById('stage-badge').className = 'bg-yellow-400 text-black font-black text-2xl sm:text-3xl px-4 py-2 rounded-2xl border-2 border-white';
+
+            resetTargetPosition();
+
+            // 開場廣東話語音（極簡、無助語詞）
+            speakCantonese('準備開始。用手指摸圓點。', true);
+        }
+
+        /* === 階段一：手指觸碰圓點 === */
+        const targetDot = document.getElementById('target-dot');
+        const scoreDisplay = document.getElementById('score-count');
+
+        function resetTargetPosition() {
+            const container = document.getElementById('game-container');
+            const maxX = container.clientWidth - 220;
+            const maxY = container.clientHeight - 220;
+
+            const randomX = Math.max(30, Math.floor(Math.random() * maxX));
+            const randomY = Math.max(30, Math.floor(Math.random() * maxY));
+
+            const colorObj = highContrastColors[Math.floor(Math.random() * highContrastColors.length)];
+
+            targetDot.style.left = `${randomX}px`;
+            targetDot.style.top = `${randomY}px`;
+            targetDot.style.backgroundColor = colorObj.bg;
+            targetDot.style.color = colorObj.text;
+        }
+
+        function handleTargetHit(e) {
+            if (currentStage !== 1) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            score++;
+            scoreDisplay.innerText = score;
+
+            playSuccessSound();
+            createGlowEffect(e.clientX || (e.touches && e.touches[0].clientX), e.clientY || (e.touches && e.touches[0].clientY));
+
+            if (score >= TARGET_SCORE) {
+                currentStage = 2;
+                setTimeout(() => {
+                    transitionToStage2();
+                }, 400);
+            } else {
+                // 簡潔肯定語句（完全無助語詞）
+                const praiseList = ['成功。', '正確。', '做得好。'];
+                const randomPraise = praiseList[Math.floor(Math.random() * praiseList.length)];
+                speakCantonese(randomPraise, true);
+
+                resetTargetPosition();
+            }
+        }
+
+        targetDot.addEventListener('pointerdown', handleTargetHit);
+
+        /* === 切換到階段二 === */
+        function transitionToStage2() {
+            document.getElementById('stage1-layer').classList.add('hidden');
+            document.getElementById('stage2-layer').classList.remove('hidden');
+            document.getElementById('stage-badge').innerText = '階段二：手掌拍拍發光';
+            document.getElementById('stage-badge').className = 'bg-cyan-400 text-black font-black text-2xl sm:text-3xl px-4 py-2 rounded-2xl border-2 border-white';
+
+            // 簡潔過場指示語音（完全無助語詞）
+            speakCantonese('用手掌拍拍螢幕。', true);
+        }
+
+        /* === 階段二：手掌拍打發光 (多點觸控) === */
+        const gameContainer = document.getElementById('game-container');
+
+        function handlePalmTouch(e) {
+            if (currentStage !== 2) return;
+            e.preventDefault();
+
+            const rect = gameContainer.getBoundingClientRect();
+            let touches = e.touches;
+
+            if (!touches || touches.length === 0) {
+                touches = [{ clientX: e.clientX, clientY: e.clientY }];
+            }
+
+            stage2TapCount++;
+            document.getElementById('stage2-count').innerText = Math.min(stage2TapCount, STAGE2_TARGET_TAPS);
+
+            for (let i = 0; i < touches.length; i++) {
+                const touch = touches[i];
+                const x = touch.clientX - rect.left;
+                const y = touch.clientY - rect.top;
+
+                const xPercent = Math.max(0, Math.min(1, x / rect.width));
+                const yPercent = Math.max(0, Math.min(1, y / rect.height));
+
+                playTone(xPercent, yPercent);
+                createGlowEffect(touch.clientX, touch.clientY);
+            }
+
+            if (stage2TapCount >= STAGE2_TARGET_TAPS) {
+                // 通關結尾（完全無助語詞）
+                speakCantonese('完成遊戲。', true);
+            } else {
+                // 拍打過程極簡語音
+                const glowPraises = ['發光。', '成功。', '做得好。'];
+                speakCantonese(glowPraises[Math.floor(Math.random() * glowPraises.length)]);
+            }
+        }
+
+        function createGlowEffect(x, y) {
+            if (!x || !y) return;
+            const glow = document.createElement('div');
+            glow.className = 'ripple-effect';
+            glow.style.left = `${x}px`;
+            glow.style.top = `${y}px`;
+
+            const colors = ['#FF0055', '#00E5FF', '#FFEB3B', '#76FF03', '#E040FB', '#FFFFFF'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            glow.style.background = `radial-gradient(circle, ${color} 0%, rgba(255,255,255,0.9) 40%, rgba(0,0,0,0) 80%)`;
+            glow.style.boxShadow = `0 0 60px ${color}, 0 0 120px ${color}`;
+
+            gameContainer.appendChild(glow);
+
+            setTimeout(() => {
+                glow.remove();
+            }, 850);
+        }
+
+        // 綁定觸控與點擊
+        gameContainer.addEventListener('touchstart', (e) => {
+            if (currentStage === 2) handlePalmTouch(e);
+        }, { passive: false });
+
+        gameContainer.addEventListener('mousedown', (e) => {
+            if (currentStage === 2 && e.target === gameContainer) {
+                handlePalmTouch(e);
+            }
+        });
+
+        /* === 全螢幕切換功能 === */
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch((err) => {
+                    console.log(`無法開啟全螢幕: ${err.message}`);
+
+        window.addEventListener('resize', () => {
+            if (currentStage === 1) {
+                resetTargetPosition();
+            }
+        });
+    </script>
+</body>
+</html>
