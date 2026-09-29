@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拍掣報天氣 - 特殊教育互動教學系統</title>
+    <!-- Tailwind CSS for Responsive Accessibility Layout -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for Weather & Accessibility Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+HK:wght@700;900&display=swap');
+        
+        * {
+            font-family: 'Noto Sans HK', system-ui, -apple-system, sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* High Contrast SEN Visual Themes */
+        body.theme-yellow-on-black { background-color: #000000; color: #FFFF00; }
+        body.theme-yellow-on-black .card-bg { background-color: #111111; border-color: #FFFF00; }
+        body.theme-yellow-on-black .btn-accent { background-color: #FFFF00; color: #000000; }
+
+        body.theme-black-on-yellow { background-color: #FFDE00; color: #000000; }
+        body.theme-black-on-yellow .card-bg { background-color: #FFF275; border-color: #000000; }
+        body.theme-black-on-yellow .btn-accent { background-color: #000000; color: #FFDE00; }
+
+        body.theme-yellow-on-blue { background-color: #031B33; color: #FFE600; }
+        body.theme-yellow-on-blue .card-bg { background-color: #0A294A; border-color: #FFE600; }
+        body.theme-yellow-on-blue .btn-accent { background-color: #FFE600; color: #031B33; }
+
+        body.theme-playful { background-color: #0f172a; color: #f8fafc; }
+        body.theme-playful .card-bg { background-color: rgba(30, 41, 59, 0.85); border-color: #38bdf8; }
+        body.theme-playful .btn-accent { background-color: #f59e0b; color: #0f172a; }
+
+        /* 3D Giant Switch Button */
+        .big-switch-btn {
+            transition: transform 0.08s ease-out, box-shadow 0.08s ease-out;
+            box-shadow: 0 22px 0 #990000, 0 30px 35px rgba(0,0,0,0.8);
+        }
+        .big-switch-btn:active, .big-switch-btn.active {
+            transform: translateY(16px);
+            box-shadow: 0 6px 0 #990000, 0 12px 20px rgba(0,0,0,0.6);
+        }
+
+        /* Gentle Glowing Pulse to Draw Vision Focus */
+        @keyframes switch-pulse {
+            0%, 100% { filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.7)); }
+            50% { filter: drop-shadow(0 0 35px rgba(239, 68, 68, 1)); }
+        }
+        .pulse-glow {
+            animation: switch-pulse 2.2s infinite;
+        }
+
+        /* Ripple Wave Effect on Switch Press */
+        .ripple-ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 10px solid rgba(255, 235, 59, 0.9);
+            animation: ripple-anim 0.7s cubic-bezier(0, 0.2, 0.8, 1) forwards;
+            pointer-events: none;
+        }
+        @keyframes ripple-anim {
+            0% { width: 0px; height: 0px; opacity: 1; }
+            100% { width: 600px; height: 600px; opacity: 0; }
+        }
+    </style>
+</head>
+<body class="theme-yellow-on-black min-h-screen flex flex-col justify-between overflow-x-hidden relative transition-colors duration-300">
+
+    <header class="p-4 border-b-4 border-current flex justify-between items-center bg-black/40 backdrop-blur z-20">
+        <div class="flex items-center space-x-3">
+            <span class="text-4xl sm:text-5xl" aria-hidden="true">☀️</span>
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-black tracking-wide">拍掣報天氣</h1>
+                <p class="text-xs sm:text-sm opacity-90 font-bold">特殊教育輔具 · 因果關係與天氣認知訓練</p>
+            </div>
+        </div>
+
+        <!-- Right Tool: Teacher Panel Toggle Button -->
+        <button onclick="toggleTeacherPanel()" class="btn-accent px-4 py-2.5 rounded-2xl border-2 border-current font-black text-base sm:text-lg flex items-center space-x-2 focus:outline-none focus:ring-4 focus:ring-amber-300 active:scale-95 transition">
+            <i class="fa-solid fa-gear text-xl"></i>
+            <span>教師設定</span>
+        </button>
+    </header>
+
+    <main class="flex-1 flex flex-col items-center justify-between p-4 max-w-5xl mx-auto w-full z-10 my-2">
+        
+        <!-- Large High-Contrast Weather Display Card -->
+        <div id="weather-card" class="card-bg border-4 rounded-3xl p-6 sm:p-8 w-full text-center shadow-2xl relative overflow-hidden transition-transform duration-300">
+            <div class="text-lg sm:text-xl font-black mb-2 opacity-90 tracking-widest uppercase">
+                <i class="fa-solid fa-cloud-sun mr-2"></i>今日天氣
+            </div>
+            
+            <!-- High-Contrast Weather Icon & Statement Text -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 my-2">
+                <i id="weather-icon" class="fa-solid fa-sun text-amber-400 text-7xl sm:text-8xl md:text-9xl transition-transform duration-300"></i>
+                <span id="display-weather-text" class="text-5xl sm:text-6xl md:text-7xl font-black tracking-wider">
+                    今天是晴天
+                </span>
+            </div>
+        </div>
+
+        <!-- Giant Interactive Red Switch Button -->
+        <div class="relative my-6 sm:my-8 flex flex-col items-center justify-center w-full">
+            <!-- Ripple Effect Anchor -->
+            <div id="ripple-container" class="absolute inset-0 flex items-center justify-center pointer-events-none"></div>
+
+            <!-- Massive Physical-Feeling Switch -->
+            <button id="big-switch" onclick="handleSwitchTrigger('touch')" class="big-switch-btn pulse-glow relative w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 rounded-full bg-gradient-to-b from-red-500 via-red-600 to-red-800 border-8 border-red-200 flex flex-col items-center justify-center cursor-pointer select-none focus:outline-none focus:ring-8 focus:ring-yellow-300">
+                <div class="w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 rounded-full bg-gradient-to-b from-red-400 to-red-600 border-4 border-red-100/60 flex flex-col items-center justify-center text-white shadow-inner">
+                    <i class="fa-solid fa-hand-pointer text-5xl sm:text-6xl md:text-7xl mb-2 filter drop-shadow-md"></i>
+                    <span class="text-4xl sm:text-5xl md:text-6xl font-black tracking-widest drop-shadow-md">拍一下</span>
+                    <span id="trigger-key-hint" class="text-xs sm:text-sm font-bold opacity-90 mt-3 bg-black/40 px-3 py-1 rounded-full border border-white/20">
+                        按下任意鍵 / 空白鍵
+                    </span>
+                </div>
+            </button>
+        </div>
+
+        <!-- Real-Time Subtitle / Speech Feedback Box -->
+        <div id="feedback-box" class="card-bg border-4 rounded-2xl p-4 sm:p-5 w-full text-center text-2xl sm:text-3xl font-black min-h-[80px] flex items-center justify-center transition-all">
+            請拍一下大按鈕，收聽今日天氣！
+        </div>
+
+    </main>
+
+    <div id="teacher-panel" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 text-white border-4 border-amber-400 rounded-3xl max-w-2xl w-full p-6 sm:p-8 max-h-[90vh] overflow-y-auto shadow-2xl relative">
+            
+            <!-- Panel Header -->
+            <div class="flex justify-between items-center border-b-2 border-slate-700 pb-4 mb-6">
+                <h2 class="text-2xl sm:text-3xl font-black text-amber-400 flex items-center">
+                    <i class="fa-solid fa-sliders mr-3"></i>教師及輔具設定選單
+                </h2>
+                <button onclick="toggleTeacherPanel()" class="text-slate-400 hover:text-white text-3xl font-bold focus:outline-none">
+                    &times;
+                </button>
+            </div>
+
+            <div class="space-y-6 text-base sm:text-lg">
+                
+                <!-- Weather Mode Selector -->
+                <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700">
+                    <label class="font-bold text-amber-300 block mb-3">
+                        <i class="fa-solid fa-cloud-sun-rain mr-2"></i>選擇目標天氣狀況 (Select Weather)
+                    </label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="setWeather('sunny', '今天是晴天')" class="weather-btn border-2 border-amber-400 bg-amber-500 text-slate-950 p-3 rounded-xl font-bold text-lg flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-sun text-2xl"></i><span>晴天</span>
+                        </button>
+                        <button onclick="setWeather('cloudy', '今天是陰天')" class="weather-btn border-2 border-slate-600 bg-slate-700 p-3 rounded-xl font-bold text-lg flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-cloud text-2xl"></i><span>陰天</span>
+                        </button>
+                        <button onclick="setWeather('rainy', '今天是雨天')" class="weather-btn border-2 border-slate-600 bg-slate-700 p-3 rounded-xl font-bold text-lg flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-cloud-showers-heavy text-2xl"></i><span>雨天</span>
+                        </button>
+                        <button onclick="setWeather('windy', '今天是微風')" class="weather-btn border-2 border-slate-600 bg-slate-700 p-3 rounded-xl font-bold text-lg flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-wind text-2xl"></i><span>微風</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Custom Speech Text Override -->
+                <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700">
+                    <label class="font-bold text-amber-300 block mb-2">
+                        <i class="fa-solid fa-bullhorn mr-2"></i>自訂廣東話語音句子 (Custom Speech Text)
+                    </label>
+                    <input type="text" id="target-speech-input" value="今天是晴天" class="w-full bg-slate-900 border-2 border-slate-600 rounded-xl p-3 font-bold text-amber-300 focus:outline-none focus:border-amber-400 text-lg">
+                </div>
+
+                <!-- High Contrast Visual Theme Selector -->
+                <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700">
+                    <label class="font-bold text-amber-300 block mb-2">
+                        <i class="fa-solid fa-eye mr-2"></i>視覺高對比主題 (High Contrast Theme)
+                    </label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="setTheme('theme-yellow-on-black')" class="p-3 rounded-xl border-2 border-yellow-400 bg-black text-yellow-300 font-bold">高對比：黑底黃字</button>
+                        <button onclick="setTheme('theme-black-on-yellow')" class="p-3 rounded-xl border-2 border-black bg-yellow-400 text-black font-bold">高對比：黃底黑字</button>
+                        <button onclick="setTheme('theme-yellow-on-blue')" class="p-3 rounded-xl border-2 border-yellow-300 bg-blue-950 text-yellow-300 font-bold">高對比：深藍底黃字</button>
+                        <button onclick="setTheme('theme-playful')" class="p-3 rounded-xl border-2 border-sky-400 bg-slate-900 text-white font-bold">預設繽紛黑藍</button>
+                    </div>
+                </div>
+
+                <!-- Speech Rate Adjuster Slider -->
+                <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="font-bold text-amber-300">
+                            <i class="fa-solid fa-gauge-high mr-2"></i>廣東話朗讀速度 (Speech Rate)
+                        </label>
+                        <span id="rate-value-label" class="font-bold text-white bg-slate-900 px-3 py-1 rounded-lg">0.7x (慢速 SEN)</span>
+                    </div>
+                    <input type="range" id="speech-rate-slider" min="0.4" max="1.2" step="0.1" value="0.7" oninput="updateSpeechRate(this.value)" class="w-full accent-amber-400 h-3 bg-slate-700 rounded-lg cursor-pointer">
+                </div>
+
+                <!-- Switch Lock / Debounce Timer (Spasticity Control) -->
+                <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700">
+                    <label class="font-bold text-amber-300 block mb-2">
+                        <i class="fa-solid fa-clock-rotate-left mr-2"></i>防誤觸／拍掣冷卻時間 (Debounce Lock)
+                    </label>
+                    <select id="debounce-select" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3 font-bold text-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                        <option value="500">0.5 秒 (快速回應)</option>
+                        <option value="1200" selected>1.2 秒 (推薦：防止連續誤拍)</option>
+                        <option value="2000">2.0 秒 (適合肢體抽搐防誤觸)</option>
+                    </select>
+                </div>
+
+                <!-- Key Trigger Configuration -->
+                <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700">
+                    <label class="font-bold text-amber-300 block mb-2">
+                        <i class="fa-solid fa-keyboard mr-2"></i>拍掣對應鍵盤按鍵 (Switch Trigger Key)
+                    </label>
+                    <select id="key-trigger-select" onchange="updateKeyHintText()" class="w-full bg-slate-900 border border-slate-600 rounded-xl p-3 font-bold text-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                        <option value="any">按鍵盤任何鍵 (Any Key) - 推薦 Interface</option>
+                        <option value="Space">只按 空白鍵 (Spacebar)</option>
+                        <option value="Enter">只按 Enter 鍵</option>
+                    </select>
+                </div>
+
+                <!-- Sound Test & Stats Bar -->
+                <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div>
+                        <span class="block text-sm text-slate-400">學生累積拍掣次數</span>
+                        <span id="click-counter-display" class="text-3xl font-black text-amber-400">0 次</span>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button onclick="speakCantoneseWeather()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex items-center">
+                            <i class="fa-solid fa-volume-high mr-2"></i>測試廣東話語音
+                        </button>
+                        <button onclick="resetStats()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm">
+                            重置數據
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Close Button -->
+            <div class="mt-8">
+                <button onclick="toggleTeacherPanel()" class="w-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xl py-3 rounded-2xl shadow-lg transition">
+                    完成設定並返回教學
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // System Global State Variables
+        let clickCount = 0;
+        let speechRate = 0.7; // Default clear & slow speed for SEN learners
+        let isLocked = false;  // Debounce lock active flag
+        let synth = window.speechSynthesis;
+        let audioCtx = null;
+
+        // Weather Configurations Map
+        const weatherConfigs = {
+            sunny: { text: "今天是晴天", iconClass: "fa-solid fa-sun text-amber-400" },
+            cloudy: { text: "今天是陰天", iconClass: "fa-solid fa-cloud text-slate-300" },
+            rainy: { text: "今天是雨天", iconClass: "fa-solid fa-cloud-showers-heavy text-sky-400" },
+            windy: { text: "今天是微風", iconClass: "fa-solid fa-wind text-teal-300" }
+        };
+
+        // Initialization Logic
+        window.addEventListener('DOMContentLoaded', () => {
+            setupKeyboardEvents();
+            
+            // Real-time listener for text input edits in teacher panel
+            document.getElementById('target-speech-input').addEventListener('input', (e) => {
+                document.getElementById('display-weather-text').innerText = e.target.value;
+            });
+        });
+
+        // Web Audio API Sound Generator for cause-and-effect chime
+        function playChimeSound() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+
+                const now = audioCtx.currentTime;
+                
+                // Pleasant High Tone (C5 -> E5)
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now); 
+                osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.15); 
+
+                gain.gain.setValueAtTime(0.35, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+
+            } catch (e) {
+                console.log('Audio Context Error', e);
+            }
+        }
+
+        // Handle Switch Trigger Execution (Touch, Keyboard, Mouse Click)
+        function handleSwitchTrigger(source) {
+            if (isLocked) return; // Debounce lock protection active
+
+            const debounceTime = parseInt(document.getElementById('debounce-select').value, 10);
+            isLocked = true;
+
+            // Visual Press Down Effect
+            const switchBtn = document.getElementById('big-switch');
+            switchBtn.classList.add('active');
+            setTimeout(() => switchBtn.classList.remove('active'), 180);
+
+            // Immediate Sensory Feedback: Play Chime Sound & Water Ripple Wave
+            playChimeSound();
+            createRipple();
+
+            // Update Trigger Counter State
+            clickCount++;
+            document.getElementById('click-counter-display').innerText = `${clickCount} 次`;
+
+            // Speak Weather in Cantonese TTS
+            speakCantoneseWeather();
+
+            // Release Debounce Lock
+            setTimeout(() => {
+                isLocked = false;
+            }, debounceTime);
+        }
+
+        // Cantonese Speech Synthesis Utterance Engine
+        function speakCantoneseWeather() {
+            if (!synth) {
+                alert('您的瀏覽器不支援語音功能，請使用 Chrome 或 Safari 瀏覽器。');
+                return;
+            }
+
+            // Cancel any pending speech
+            synth.cancel();
+
+            const speechText = document.getElementById('target-speech-input').value;
+
+            // Update Subtitle Feedback Display
+            const feedbackBox = document.getElementById('feedback-box');
+            feedbackBox.innerText = speechText;
+
+            const utterance = new SpeechSynthesisUtterance(speechText);
+            
+            // Cantonese TTS Configuration
+            utterance.lang = 'zh-HK';
+            utterance.rate = speechRate;
+            utterance.pitch = 1.0; 
+
+            // Select Best Available Cantonese Voice Profile
+            const voices = synth.getVoices();
+            const cantoneseVoice = voices.find(v => 
+                v.lang.includes('HK') || 
+                v.lang.includes('zh-HK') || 
+                v.lang.includes('zh-YUE') ||
+                v.name.includes('Hong Kong') || 
+                v.name.includes('Cantonese') || 
+                v.name.includes('Sin-Ji')
+            );
+
+            if (cantoneseVoice) {
+                utterance.voice = cantoneseVoice;
+            }
+
+            // Visual Highlighting Frame on Card During Speech
+            const weatherCard = document.getElementById('weather-card');
+            const weatherIcon = document.getElementById('weather-icon');
+
+            utterance.onstart = () => {
+                weatherCard.classList.add('scale-105', 'ring-8', 'ring-amber-300');
+                weatherIcon.classList.add('scale-125');
+            };
+
+            utterance.onend = () => {
+                weatherCard.classList.remove('scale-105', 'ring-8', 'ring-amber-300');
+                weatherIcon.classList.remove('scale-125');
+            };
+
+            synth.speak(utterance);
+        }
+
+        // Ensure speech voices are asynchronously loaded
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = () => synth.getVoices();
+        }
+
+        // Keyboard & Switch Interface Hardware Event Listener
+        function setupKeyboardEvents() {
+            window.addEventListener('keydown', (e) => {
+                // Ignore keypresses if Teacher Panel modal is open or typing in text input
+                const modal = document.getElementById('teacher-panel');
+                if (!modal.classList.contains('hidden') || e.target.tagName === 'INPUT') return;
+
+                const triggerMode = document.getElementById('key-trigger-select').value;
+
+                if (triggerMode === 'any') {
+                    if (e.code !== 'F5' && e.code !== 'F12') { // Avoid function keys
+                        e.preventDefault();
+                        handleSwitchTrigger('keyboard');
+                    }
+                } else if (triggerMode === 'Space' && (e.code === 'Space' || e.key === ' ')) {
+                    e.preventDefault();
+                    handleSwitchTrigger('keyboard');
+                } else if (triggerMode === 'Enter' && e.code === 'Enter') {
+                    e.preventDefault();
+                    handleSwitchTrigger('keyboard');
+                }
+            });
+        }
+
+        // Water Wave / Ripple Ring Animation
+        function createRipple() {
+            const container = document.getElementById('ripple-container');
+            const ripple = document.createElement('div');
+            ripple.className = 'ripple-ring';
+            container.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 700);
+        }
+
+        // Teacher Panel Control Handler Functions
+        function toggleTeacherPanel() {
+            const modal = document.getElementById('teacher-panel');
+            modal.classList.toggle('hidden');
+        }
+
+        function setWeather(key, defaultText) {
+            const config = weatherConfigs[key];
+            if (!config) return;
+
+            // Update Icon & Text
+            document.getElementById('weather-icon').className = `${config.iconClass} text-7xl sm:text-8xl md:text-9xl transition-transform duration-300`;
+            document.getElementById('display-weather-text').innerText = defaultText;
+            document.getElementById('target-speech-input').value = defaultText;
+
+            // Highlight Active Button in Teacher Panel
+            document.querySelectorAll('.weather-btn').forEach(btn => {
+                btn.classList.remove('border-amber-400', 'bg-amber-500', 'text-slate-950');
+                btn.classList.add('border-slate-600', 'bg-slate-700', 'text-white');
+            });
+            event.currentTarget.classList.remove('border-slate-600', 'bg-slate-700', 'text-white');
+            event.currentTarget.classList.add('border-amber-400', 'bg-amber-500', 'text-slate-950');
+        }
+
+        function updateSpeechRate(val) {
+            speechRate = parseFloat(val);
+            document.getElementById('rate-value-label').innerText = `${speechRate.toFixed(1)}x (${speechRate <= 0.7 ? '慢速 SEN' : '正常'})`;
+        }
+
+        function setTheme(themeClass) {
+            document.body.className = `min-h-screen flex flex-col justify-between overflow-x-hidden relative transition-colors duration-300 ${themeClass}`;
+        }
+
+        function updateKeyHintText() {
+            const mode = document.getElementById('key-trigger-select').value;
+            const hint = document.getElementById('trigger-key-hint');
+            if (mode === 'any') hint.innerText = '按下任意鍵 / 空白鍵';
+            else if (mode === 'Space') hint.innerText = '按下 空白鍵 (Space)';
+            else if (mode === 'Enter') hint.innerText = '按下 Enter 鍵';
+        }
+
+        function resetStats() {
+            clickCount = 0;
+            document.getElementById('click-counter-display').innerText = '0 次';
+        }
+    </script>
+</body>
+</html>
