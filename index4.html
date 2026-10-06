@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>拍掣報日期 - 特殊教育互動學習系統</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for Accessibility and High Legibility -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+HK:wght@500;700;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'vi-yellow': '#FFFF00',
+                        'vi-black': '#000000',
+                        'vi-blue': '#001A4D',
+                        'vi-cyan': '#00FFFF',
+                        'vi-pink': '#FF007F',
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans HK', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Noto Sans HK', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* High Contrast Visual Themes */
+        .theme-yellow-black {
+            background-color: #000000 !important;
+            color: #FFFF00 !important;
+        }
+        .theme-yellow-black .card-bg {
+            background-color: #121200 !important;
+            border: 5px solid #FFFF00 !important;
+            color: #FFFF00 !important;
+        }
+
+        .theme-blue-yellow {
+            background-color: #00122e !important;
+            color: #FFFF00 !important;
+        }
+        .theme-blue-yellow .card-bg {
+            background-color: #002255 !important;
+            border: 5px solid #FFFF00 !important;
+            color: #FFFF00 !important;
+        }
+
+        .theme-white-black {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+        }
+        .theme-white-black .card-bg {
+            background-color: #f4f4f6 !important;
+            border: 5px solid #000000 !important;
+            color: #000000 !important;
+        }
+
+        .theme-black-white {
+            background-color: #121212 !important;
+            color: #ffffff !important;
+        }
+        .theme-black-white .card-bg {
+            background-color: #262626 !important;
+            border: 5px solid #ffffff !important;
+            color: #ffffff !important;
+        }
+
+        /* Focus & Highlight Effect for VI/SEN students */
+        .active-step {
+            animation: pulse-glow 1.2s infinite alternate, glow-bg 0.5s ease-in-out;
+            transform: scale(1.05);
+            z-index: 30;
+        }
+
+        @keyframes pulse-glow {
+            0% { outline: 10px solid #00FFFF; box-shadow: 0 0 30px #00FFFF; }
+            100% { outline: 14px solid #FF007F; box-shadow: 0 0 50px #FF007F; }
+        }
+
+        /* Visual Button Press Feedback */
+        .switch-btn-pressed {
+            transform: scale(0.92) translateY(10px) !important;
+            box-shadow: 0 2px 0 #000 !important;
+        }
+
+        /* Inline word highlight for date text */
+        .word-highlight {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        /* Particle Praise Canvas */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Cooldown Progress Bar Animation */
+        .cooldown-active {
+            transition: width linear;
+        }
+    </style>
+</head>
+<body class="theme-yellow-black min-h-screen flex flex-col justify-between overflow-x-hidden p-2 sm:p-4 transition-colors duration-300">
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- Top Header Navigation & Controls -->
+    <header class="w-full flex flex-wrap justify-between items-center p-3 rounded-2xl bg-black/50 border-2 border-current shadow-lg mb-2 gap-2">
+        <div class="flex items-center space-x-3">
+            <span class="text-3xl sm:text-5xl" aria-hidden="true">🗓️</span>
+            <div>
+                <h1 class="text-xl sm:text-3xl font-black tracking-wide">拍掣報日期教學系統</h1>
+                <p class="text-xs sm:text-sm font-bold opacity-80">專為視障及智障學生設計 (支援 Space / 拍掣觸發)</p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+            <!-- Mode Selector Indicator -->
+            <button id="mode-toggle-btn" class="px-3 py-2 rounded-xl border-2 border-current font-bold text-xs sm:text-base hover:opacity-80 transition active:scale-95 flex items-center gap-1">
+                <span>🎮 模式: <span id="current-mode-label">晨會自動報日期</span></span>
+            </button>
+
+            <!-- TTS Sound Test -->
+            <button id="tts-test-btn" class="px-3 py-2 rounded-xl border-2 border-current font-bold text-xs sm:text-base hover:opacity-80 transition active:scale-95 flex items-center gap-1">
+                <span>🔊 測試廣東話</span>
+            </button>
+
+            <!-- Teacher Settings Panel Trigger -->
+            <button id="settings-open-btn" class="px-3 py-2 rounded-xl border-2 border-current font-bold text-xs sm:text-base bg-yellow-400 text-black hover:bg-yellow-300 transition active:scale-95 flex items-center gap-1">
+                <span>⚙️ 教師/工程師設定</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area: Simplified Layout with Single Date Line Above Giant Center Button -->
+    <main class="flex-grow flex flex-col justify-center items-center w-full max-w-5xl mx-auto my-auto px-2 sm:px-4 gap-4 sm:gap-6">
+        
+        <!-- Instruction Banner -->
+        <div id="instruction-banner" class="w-full text-center py-2 sm:py-3 px-4 rounded-2xl border-4 border-current card-bg shadow-xl transition-all">
+            <h2 id="instruction-text" class="text-lg sm:text-2xl md:text-4xl font-black tracking-wider animate-bounce">
+                👇 請拍一下「拍掣」或按 [空白鍵] 報日期！
+            </h2>
+        </div>
+
+        <!-- Single Sentence Date Display Box directly above the button -->
+        <div id="full-sentence-box" class="w-full card-bg p-5 sm:p-8 rounded-3xl text-center border-4 border-current shadow-2xl transition-all">
+            <span class="text-base sm:text-xl font-bold block mb-2 opacity-80">📢 今日日期：</span>
+            <p id="full-sentence-text" class="text-3xl sm:text-5xl md:text-6xl font-black leading-relaxed tracking-wide flex flex-wrap justify-center items-center gap-2 sm:gap-4">
+                <span>今天是</span>
+                <span id="word-year" class="word-highlight">2026年</span>
+                <span id="word-month" class="word-highlight">10月</span>
+                <span id="word-day" class="word-highlight">7日</span>
+                <span id="word-weekday" class="word-highlight">星期四</span>
+            </p>
+        </div>
+
+        <!-- Giant Interactive Center Switch Button -->
+        <div class="w-full flex flex-col items-center justify-center my-2">
+            <button id="giant-switch-btn" class="w-full max-w-4xl py-12 sm:py-16 px-8 rounded-3xl border-8 border-current bg-red-600 text-white hover:bg-red-500 font-black text-4xl sm:text-6xl md:text-7xl shadow-[0_16px_0_#880000] active:shadow-none transition-all duration-150 flex items-center justify-center gap-4 cursor-pointer relative overflow-hidden min-h-[220px] sm:min-h-[280px]">
+                <span class="animate-pulse text-5xl sm:text-7xl">🔴</span>
+                <span>拍一下 (PRESS)</span>
+                <span class="animate-pulse text-5xl sm:text-7xl">🔴</span>
+                <!-- Cooldown overlay bar -->
+                <div id="cooldown-bar" class="absolute bottom-0 left-0 h-4 bg-cyan-400 w-0"></div>
+            </button>
+            <p id="cooldown-hint" class="text-sm sm:text-lg font-bold opacity-80 mt-3 text-center">
+                💡 可使用 [Space 空白鍵] / [Enter 鍵] 或點擊中央紅色大拍掣
+            </p>
+        </div>
+    </main>
+
+    <!-- Footer Status -->
+    <footer class="w-full text-center p-2 text-xs sm:text-base font-bold opacity-80 border-t border-current/30">
+        ♿ 特殊學校專用單鍵輔具介面 (Single-Switch Access Compliant)
+    </footer>
+
+    <!-- Teacher & Engineer Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
+        <div class="card-bg w-full max-w-3xl p-5 sm:p-8 rounded-3xl border-4 border-current shadow-2xl overflow-y-auto max-h-[92vh]">
+            <div class="flex justify-between items-center border-b-2 border-current pb-3 mb-4">
+                <h3 class="text-2xl sm:text-3xl font-black flex items-center gap-2">⚙️ 教師/工程師設定面板</h3>
+                <button id="settings-close-btn" class="text-2xl font-black px-4 py-1 rounded-xl border-2 border-current hover:bg-red-500 hover:text-white">✕ 關閉</button>
+            </div>
+
+            <div class="space-y-6 text-left">
+                <!-- Teaching Mode Selection -->
+                <div>
+                    <label class="block text-lg font-bold mb-2">🎮 教學互動模式：</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button id="mode-btn-routine" class="p-3 rounded-xl border-2 border-current font-bold text-sm sm:text-base text-left bg-yellow-400 text-black">
+                            1️⃣ 晨會自動全流程<br><span class="text-xs font-normal">拍1下，自動逐步報讀完畢</span>
+                        </button>
+                        <button id="mode-btn-step" class="p-3 rounded-xl border-2 border-current font-bold text-sm sm:text-base text-left">
+                            2️⃣ 分步按壓模式<br><span class="text-xs font-normal">拍1下報1項(年->月->日->星期)</span>
+                        </button>
+                        <button id="mode-btn-quiz" class="p-3 rounded-xl border-2 border-current font-bold text-sm sm:text-base text-left">
+                            3️⃣ 日期快問快答<br><span class="text-xs font-normal">拍掣回答問題與公佈答案</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Date Source Selection -->
+                <div>
+                    <label class="block text-lg font-bold mb-2">📅 教學日期設定：</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                        <button id="date-mode-custom" class="p-3 rounded-xl border-2 border-current font-bold text-left bg-yellow-400 text-black">
+                            📌 指定教學日期 (2026年10月7日)
+                        </button>
+                        <button id="date-mode-real" class="p-3 rounded-xl border-2 border-current font-bold text-left">
+                            ⏰ 當前真實電腦日期
+                        </button>
+                    </div>
+
+                    <div id="custom-date-container" class="p-4 rounded-2xl border-2 border-current/50 bg-black/30 space-y-3">
+                        <div>
+                            <label class="block font-bold mb-1">手動選擇日期：</label>
+                            <input type="date" id="custom-date-input" value="2026-10-07" class="w-full p-3 rounded-xl text-black font-bold text-xl border-2 border-black">
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">星期顯示覆蓋 (可指定如「星期四」)：</label>
+                            <select id="weekday-override-select" class="w-full p-3 rounded-xl text-black font-bold text-lg border-2 border-black">
+                                <option value="auto">🤖 自動計算星期</option>
+                                <option value="星期日">星期日 (Sunday)</option>
+                                <option value="星期一">星期一 (Monday)</option>
+                                <option value="星期二">星期二 (Tuesday)</option>
+                                <option value="星期三">星期三 (Wednesday)</option>
+                                <option value="星期四" selected>星期四 (Thursday) [題目指定]</option>
+                                <option value="星期五">星期五 (Friday)</option>
+                                <option value="星期六">星期六 (Saturday)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- High Contrast Themes -->
+                <div>
+                    <label class="block text-lg font-bold mb-2">👁️ 視障視覺高對比色彩主題：</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <button onclick="setTheme('theme-yellow-black')" class="p-3 rounded-xl border-2 border-yellow-400 bg-black text-yellow-400 font-bold text-sm">
+                            黃黑 (Yellow/Black)
+                        </button>
+                        <button onclick="setTheme('theme-blue-yellow')" class="p-3 rounded-xl border-2 border-yellow-400 bg-blue-950 text-yellow-400 font-bold text-sm">
+                            藍黃 (Yellow/Blue)
+                        </button>
+                        <button onclick="setTheme('theme-white-black')" class="p-3 rounded-xl border-2 border-black bg-white text-black font-bold text-sm">
+                            白底黑字 (White)
+                        </button>
+                        <button onclick="setTheme('theme-black-white')" class="p-3 rounded-xl border-2 border-white bg-gray-900 text-white font-bold text-sm">
+                            黑底白字 (Dark)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TTS Cantonese Voice Settings -->
+                <div>
+                    <label class="block text-lg font-bold mb-2">🗣️ 廣東話語音設定 (TTS Speech)：</label>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-bold">選擇語音包 (Voice)：</label>
+                            <select id="voice-select" class="w-full p-3 rounded-xl text-black font-bold bg-white border-2 border-black mt-1">
+                                <option value="">載入廣東話語音中...</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <div class="flex justify-between font-bold">
+                                    <span>朗讀速度 (Rate)：</span>
+                                    <span id="rate-val">0.80x</span>
+                                </div>
+                                <input type="range" id="rate-range" min="0.4" max="1.2" step="0.05" value="0.80" class="w-full h-3 bg-gray-300 rounded-lg appearance-none cursor-pointer mt-1">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between font-bold">
+                                    <span>音調 (Pitch)：</span>
+                                    <span id="pitch-val">1.0</span>
+                                </div>
+                                <input type="range" id="pitch-range" min="0.6" max="1.4" step="0.1" value="1.0" class="w-full h-3 bg-gray-300 rounded-lg appearance-none cursor-pointer mt-1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Debounce / Cooldown Settings -->
+                <div>
+                    <label class="block text-lg font-bold mb-1">⏱️ 拍掣防重複按壓冷卻時間 (Debounce Cooldown)：</label>
+                    <p class="text-xs opacity-80 mb-2">防止學生肌能不協調時重複觸發</p>
+                    <select id="cooldown-select" class="w-full p-3 rounded-xl text-black font-bold bg-white border-2 border-black">
+                        <option value="1000">1 秒 (1000ms)</option>
+                        <option value="2000" selected>2 秒 (2000ms - 推薦)</option>
+                        <option value="3000">3 秒 (3000ms)</option>
+                        <option value="4000">4 秒 (4000ms)</option>
+                    </select>
+                </div>
+
+                <div class="pt-4 border-t-2 border-current flex justify-end">
+                    <button id="settings-save-btn" class="px-6 py-3 rounded-2xl bg-green-500 text-black font-black text-xl hover:bg-green-400 transition active:scale-95">
+                        ✅ 儲存並返回教學
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global State & SEN Configuration
+        let currentDateObj = new Date(2026, 9, 7); // Default: 2026 Oct 7 (Month is 0-indexed)
+        let customWeekday = "星期四"; // Prompt specified Thursday explicitly
+        let isCustomDate = true;
+        let speechRate = 0.80; // Slower rate suitable for SEN students
+        let speechPitch = 1.0;
+        let cooldownTime = 2000; // 2 seconds debounce cooldown
+        let isProcessingPress = false;
+        let voices = [];
+        let cantoneseVoice = null;
+        let gameMode = 'routine'; // 'routine', 'step', or 'quiz'
+        let currentStepIndex = 0; // For 'step' press-by-press mode
+
+        const weekdayNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+        const weekdayEnglishMap = {
+            '星期日': 'Sunday',
+            '星期一': 'Monday',
+            '星期二': 'Tuesday',
+            '星期三': 'Wednesday',
+            '星期四': 'Thursday',
+            '星期五': 'Friday',
+            '星期六': 'Saturday'
+        };
+
+        // Web Audio API Synth Generator (No external audio file reliance)
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // Tactile audio feedback pitch generator
+        function playTone(freq = 523.25, type = 'sine', duration = 0.25) {
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                
+                gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {
+                console.log("Audio not supported or ready", e);
+            }
+        }
+
+        // Success fanfare sequence for sensory positive reinforcement
+        function playSuccessFanfare() {
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+            notes.forEach((freq, idx) => {
+                setTimeout(() => {
+                    playTone(freq, 'triangle', 0.3);
+                }, idx * 110);
+            });
+        }
+
+        // Web Speech API Voice Initialization (Cantonese Focus)
+        function populateVoices() {
+            if (!('speechSynthesis' in window)) {
+                return;
+            }
+
+            voices = speechSynthesis.getVoices();
+            const voiceSelect = document.getElementById('voice-select');
+            voiceSelect.innerHTML = '';
+
+            let hkVoices = voices.filter(v => 
+                v.lang.includes('zh-HK') || v.lang.includes('yue') || v.lang.includes('zh-TW')
+            );
+
+            if (hkVoices.length === 0) {
+                hkVoices = voices.filter(v => v.lang.includes('zh'));
+            }
+
+            voices.forEach((v, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${v.name} (${v.lang})`;
+                if (v.lang === 'zh-HK' || v.name.includes('Hong Kong') || v.name.includes('Sin-Ji') || v.name.includes('HiuGaai') || v.name.includes('Cantonese')) {
+                    option.selected = true;
+                    cantoneseVoice = v;
+                }
+                voiceSelect.appendChild(option);
+            });
+
+            if (!cantoneseVoice && voices.length > 0) {
+                cantoneseVoice = hkVoices[0] || voices[0];
+            }
+        }
+
+        if ('speechSynthesis' in window) {
+            speechSynthesis.onvoiceschanged = populateVoices;
+            populateVoices();
+        }
+
+        // Asynchronous Speech Helper
+        function speakAsync(text) {
+            return new Promise((resolve) => {
+                if (!('speechSynthesis' in window)) {
+                    resolve();
+                    return;
+                }
+
+                speechSynthesis.cancel(); // Stop any ongoing speech
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                if (cantoneseVoice) {
+                    utterance.voice = cantoneseVoice;
+                }
+                utterance.lang = 'zh-HK';
+                utterance.rate = speechRate;
+                utterance.pitch = speechPitch;
+
+                utterance.onend = () => resolve();
+                utterance.onerror = () => resolve();
+
+                speechSynthesis.speak(utterance);
+            });
+        }
+
+        // Get effective weekday string
+        function getEffectiveWeekday() {
+            const overrideVal = document.getElementById('weekday-override-select').value;
+            if (overrideVal && overrideVal !== 'auto') {
+                return overrideVal;
+            }
+            return weekdayNames[currentDateObj.getDay()];
+        }
+
+        // Update Card Visual Displays
+        function updateDateDisplay() {
+            const y = currentDateObj.getFullYear();
+            const m = currentDateObj.getMonth() + 1;
+            const d = currentDateObj.getDate();
+            const w = getEffectiveWeekday();
+
+            const yearEl = document.getElementById('word-year');
+            const monthEl = document.getElementById('word-month');
+            const dayEl = document.getElementById('word-day');
+            const weekdayEl = document.getElementById('word-weekday');
+
+            if (yearEl) yearEl.textContent = `${y}年`;
+            if (monthEl) monthEl.textContent = `${m}月`;
+            if (dayEl) dayEl.textContent = `${d}日`;
+            if (weekdayEl) weekdayEl.textContent = w;
+        }
+
+        // Highlight visual card/word step
+        function highlightCard(cardId) {
+            ['word-year', 'word-month', 'word-day', 'word-weekday', 'full-sentence-box'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active-step');
+            });
+
+            if (cardId) {
+                const el = document.getElementById(cardId);
+                if (el) {
+                    el.classList.add('active-step');
+                }
+            }
+        }
+
+        // Start Debounce Cooldown Bar Visual Animation
+        function startCooldownTimer() {
+            const bar = document.getElementById('cooldown-bar');
+            bar.style.transition = 'none';
+            bar.style.width = '100%';
+            
+            setTimeout(() => {
+                bar.style.transition = `width ${cooldownTime}ms linear`;
+                bar.style.width = '0%';
+            }, 50);
+        }
+
+        // Core Switch Trigger Logic (拍一下的核心動作)
+        async function handleSwitchPress() {
+            if (isProcessingPress) return;
+            isProcessingPress = true;
+
+            startCooldownTimer();
+
+            const giantBtn = document.getElementById('giant-switch-btn');
+            giantBtn.classList.add('switch-btn-pressed');
+            setTimeout(() => giantBtn.classList.remove('switch-btn-pressed'), 200);
+
+            // Initial audio feedback chime
+            playTone(600, 'sine', 0.2);
+
+            const y = currentDateObj.getFullYear();
+            const m = currentDateObj.getMonth() + 1;
+            const d = currentDateObj.getDate();
+            const w = getEffectiveWeekday();
+
+            const bannerText = document.getElementById('instruction-text');
+            bannerText.classList.remove('animate-bounce');
+
+            if (gameMode === 'routine') {
+                // 1️⃣ Routine Auto Sequence Mode
+                bannerText.textContent = '🔊 正在為您讀出日期...';
+
+                // Step 1: Year
+                highlightCard('word-year');
+                playTone(440, 'triangle', 0.2);
+                await speakAsync(`${y}年`);
+                await new Promise(r => setTimeout(r, 200));
+
+                // Step 2: Month
+                highlightCard('word-month');
+                playTone(554.37, 'triangle', 0.2);
+                await speakAsync(`${m}月`);
+                await new Promise(r => setTimeout(r, 200));
+
+                // Step 3: Day
+                highlightCard('word-day');
+                playTone(659.25, 'triangle', 0.2);
+                await speakAsync(`${d}號`);
+                await new Promise(r => setTimeout(r, 200));
+
+                // Step 4: Weekday
+                highlightCard('word-weekday');
+                playTone(880, 'triangle', 0.2);
+                await speakAsync(w);
+                await new Promise(r => setTimeout(r, 300));
+
+                // Step 5: Full sentence summary
+                highlightCard('full-sentence-box');
+                playSuccessFanfare();
+                triggerConfetti();
+
+                const fullSentence = `今天是，${y}年，${m}月，${d}日，${w}`;
+                await speakAsync(fullSentence);
+
+                highlightCard(null);
+                bannerText.textContent = '🌟 太棒了！按一下拍掣可以再聽一次！';
+                bannerText.classList.add('animate-bounce');
+
+            } else if (gameMode === 'step') {
+                // 2️⃣ Step-by-Step Press Mode
+                currentStepIndex = (currentStepIndex % 5) + 1;
+
+                if (currentStepIndex === 1) {
+                    highlightCard('word-year');
+                    playTone(440, 'triangle', 0.2);
+                    bannerText.textContent = `📍 第一步：${y}年`;
+                    await speakAsync(`${y}年`);
+                } else if (currentStepIndex === 2) {
+                    highlightCard('word-month');
+                    playTone(554.37, 'triangle', 0.2);
+                    bannerText.textContent = `📍 第二步：${m}月`;
+                    await speakAsync(`${m}月`);
+                } else if (currentStepIndex === 3) {
+                    highlightCard('word-day');
+                    playTone(659.25, 'triangle', 0.2);
+                    bannerText.textContent = `📍 第三步：${d}號`;
+                    await speakAsync(`${d}號`);
+                } else if (currentStepIndex === 4) {
+                    highlightCard('word-weekday');
+                    playTone(880, 'triangle', 0.2);
+                    bannerText.textContent = `📍 第四步：${w}`;
+                    await speakAsync(w);
+                } else if (currentStepIndex === 5) {
+                    highlightCard('full-sentence-box');
+                    playSuccessFanfare();
+                    triggerConfetti();
+                    bannerText.textContent = `🎉 太棒了！完成了整句朗讀！`;
+                    const fullSentence = `今天是，${y}年，${m}月，${d}日，${w}`;
+                    await speakAsync(fullSentence);
+                    highlightCard(null);
+                }
+
+            } else if (gameMode === 'quiz') {
+                // 3️⃣ Date Quiz Game Mode
+                highlightCard('word-weekday');
+                playSuccessFanfare();
+                triggerConfetti();
+
+                const responseText = `答對了！今天是 ${y}年 ${m}月 ${d}日 ${w}！你真棒！`;
+                bannerText.textContent = `🎉 答對了！${w}！`;
+                await speakAsync(responseText);
+
+                bannerText.textContent = '👇 請再按一下拍掣繼續練習！';
+                bannerText.classList.add('animate-bounce');
+            }
+
+            // Cooldown delay reset
+            setTimeout(() => {
+                isProcessingPress = false;
+            }, cooldownTime);
+        }
+
+        // Canvas Visual Celebration Particles
+        function triggerConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const colors = ['#FFFF00', '#FF007F', '#00FFFF', '#00FF00', '#FF9900', '#FFFFFF'];
+
+            for (let i = 0; i < 70; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 20,
+                    vy: (Math.random() - 0.7) * 20,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 14 + 6,
+                    life: 100
+                });
+            }
+
+            function animateConfetti() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let alive = false;
+
+                particles.forEach(p => {
+                    if (p.life > 0) {
+                        alive = true;
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += 0.45; // gravity
+                        p.life -= 1.6;
+
+                        ctx.fillStyle = p.color;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+
+                if (alive) {
+                    requestAnimationFrame(animateConfetti);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            animateConfetti();
+        }
+
+        function setTheme(themeName) {
+            document.body.className = `min-h-screen flex flex-col justify-between overflow-x-hidden p-2 sm:p-4 transition-colors duration-300 ${themeName}`;
+        }
+
+        function setGameMode(mode) {
+            gameMode = mode;
+            currentStepIndex = 0;
+            highlightCard(null);
+
+            const label = document.getElementById('current-mode-label');
+            const banner = document.getElementById('instruction-text');
+
+            const btnRoutine = document.getElementById('mode-btn-routine');
+            const btnStep = document.getElementById('mode-btn-step');
+            const btnQuiz = document.getElementById('mode-btn-quiz');
+
+            btnRoutine.className = "p-3 rounded-xl border-2 border-current font-bold text-sm sm:text-base text-left";
+            btnStep.className = "p-3 rounded-xl border-2 border-current font-bold text-sm sm:text-base text-left";
+            btnQuiz.className = "p-3 rounded-xl border-2 border-current font-bold text-sm sm:text-base text-left";
+
+            if (mode === 'routine') {
+                label.textContent = '晨會自動報日期';
+                banner.textContent = '👇 請拍一下「拍掣」或按 [空白鍵] 報日期！';
+                btnRoutine.className += " bg-yellow-400 text-black";
+            } else if (mode === 'step') {
+                label.textContent = '分步按壓模式';
+                banner.textContent = '👇 請拍一下「拍掣」開始第一步 (年份)！';
+                btnStep.className += " bg-yellow-400 text-black";
+            } else if (mode === 'quiz') {
+                label.textContent = '日期快問快答';
+                banner.textContent = '❓ 拍一下「拍掣」，聽聽今天是星期幾？';
+                btnQuiz.className += " bg-yellow-400 text-black";
+            }
+
+            playTone(700, 'sine', 0.15);
+        }
+
+        // Event Listener Initialization
+        function setupEventListeners() {
+            // Global Switch Key Triggering (Space, Enter, Numpad 1)
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' || e.code === 'Enter' || e.key === '1') {
+                    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT') {
+                        return; // Ignore key inputs while configuring settings inputs
+                    }
+                    e.preventDefault();
+                    handleSwitchPress();
+                }
+            });
+
+            // Giant Red Button Pointer Event
+            const giantBtn = document.getElementById('giant-switch-btn');
+            giantBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                handleSwitchPress();
+            });
+
+            // Modal Controls
+            const modal = document.getElementById('settings-modal');
+            document.getElementById('settings-open-btn').addEventListener('click', () => {
+                modal.classList.remove('hidden');
+            });
+
+            document.getElementById('settings-close-btn').addEventListener('click', () => {
+                modal.classList.add('hidden');
+            });
+
+            document.getElementById('settings-save-btn').addEventListener('click', () => {
+                modal.classList.add('hidden');
+                updateDateDisplay();
+                playTone(880, 'sine', 0.15);
+            });
+
+            // Mode Selector Buttons inside Modal
+            document.getElementById('mode-btn-routine').addEventListener('click', () => setGameMode('routine'));
+            document.getElementById('mode-btn-step').addEventListener('click', () => setGameMode('step'));
+            document.getElementById('mode-btn-quiz').addEventListener('click', () => setGameMode('quiz'));
+
+            document.getElementById('mode-toggle-btn').addEventListener('click', () => {
+                if (gameMode === 'routine') setGameMode('step');
+                else if (gameMode === 'step') setGameMode('quiz');
+                else setGameMode('routine');
+            });
+
+            // Date Selection Listeners
+            const customBtn = document.getElementById('date-mode-custom');
+            const realBtn = document.getElementById('date-mode-real');
+            const customDateContainer = document.getElementById('custom-date-container');
+            const dateInput = document.getElementById('custom-date-input');
+            const weekdayOverrideSelect = document.getElementById('weekday-override-select');
+
+            customBtn.addEventListener('click', () => {
+                isCustomDate = true;
+                customBtn.className = "p-3 rounded-xl border-2 border-current font-bold text-left bg-yellow-400 text-black";
+                realBtn.className = "p-3 rounded-xl border-2 border-current font-bold text-left";
+                customDateContainer.classList.remove('hidden');
+
+                const parts = dateInput.value.split('-');
+                currentDateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+                updateDateDisplay();
+            });
+
+            realBtn.addEventListener('click', () => {
+                isCustomDate = false;
+                realBtn.className = "p-3 rounded-xl border-2 border-current font-bold text-left bg-yellow-400 text-black";
+                customBtn.className = "p-3 rounded-xl border-2 border-current font-bold text-left";
+                customDateContainer.classList.add('hidden');
+
+                currentDateObj = new Date();
+                weekdayOverrideSelect.value = 'auto';
+                updateDateDisplay();
+            });
+
+            dateInput.addEventListener('change', (e) => {
+                if (e.target.value) {
+                    const parts = e.target.value.split('-');
+                    currentDateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+                    updateDateDisplay();
+                }
+            });
+
+            weekdayOverrideSelect.addEventListener('change', () => {
+                updateDateDisplay();
+            });
+
+            // Speech Settings Listeners
+            document.getElementById('voice-select').addEventListener('change', (e) => {
+                const idx = e.target.value;
+                if (voices[idx]) {
+                    cantoneseVoice = voices[idx];
+                }
+            });
+
+            const rateRange = document.getElementById('rate-range');
+            const rateVal = document.getElementById('rate-val');
+            rateRange.addEventListener('input', (e) => {
+                speechRate = parseFloat(e.target.value);
+                rateVal.textContent = `${speechRate.toFixed(2)}x`;
+            });
+
+            const pitchRange = document.getElementById('pitch-range');
+            const pitchVal = document.getElementById('pitch-val');
+            pitchRange.addEventListener('input', (e) => {
+                speechPitch = parseFloat(e.target.value);
+                pitchVal.textContent = speechPitch.toFixed(1);
+            });
+
+            document.getElementById('cooldown-select').addEventListener('change', (e) => {
+                cooldownTime = parseInt(e.target.value, 10);
+            });
+
+            document.getElementById('tts-test-btn').addEventListener('click', () => {
+                playTone(659.25, 'sine', 0.2);
+                const w = getEffectiveWeekday();
+                speakAsync(`測試語音：今天是2026年10月7日${w}。`);
+            });
+        }
+
+        // Window Load Entry Point
+        window.onload = function() {
+            updateDateDisplay();
+            setupEventListeners();
+            
+            // Audio context unlock on first user tap
+            document.body.addEventListener('pointerdown', function initFirstAudio() {
+                initAudio();
+                document.body.removeEventListener('pointerdown', initFirstAudio);
+            }, { once: true });
+        };
+    </script>
+</body>
+</html>
