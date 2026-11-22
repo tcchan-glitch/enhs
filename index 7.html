@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-HK"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>課文朗讀程式 (短句版)</title>
+<style>
+•	{
+box-sizing: border-box;
+-webkit-tap-highlight-color: transparent;
+}
+body {
+margin: 0;
+padding: 0;
+background-color: #000000;
+color: #FFFF00;
+font-family: "Microsoft JhengHei", "PingFang HK", sans-serif;
+height: 100vh;
+overflow: hidden;
+overscroll-behavior: none;
+}
+
+#menuScreen {
+display: flex;
+flex-direction: column;
+height: 100vh;
+padding: 20px;
+justify-content: center;
+align-items: center;
+}
+.menu-title {
+font-size: 5vw;
+margin-bottom: 30px;
+color: #FFFFFF;
+}
+.menu-btn {
+width: 80%;
+flex: none;
+height: 12vh;
+margin: 10px;
+font-size: 5vw;
+font-weight: bold;
+background-color: #FFFF00;
+color: #000;
+border: none;
+border-radius: 20px;
+cursor: pointer;
+}
+
+#mainScreen {
+display: none;
+flex-direction: column;
+height: 100vh;
+width: 100vw;
+}
+
+#topBar {
+flex: none;
+display: flex;
+justify-content: space-between;
+align-items: center;
+padding: 10px 20px;
+background-color: #222;
+}
+#homeBtn {
+background-color: #555;
+color: white;
+border: none;
+font-size: 3vw;
+padding: 10px 20px;
+cursor: pointer;
+}
+
+#readArea {
+flex: 1;
+overflow-y: auto;
+display: flex;
+flex-direction: column;
+padding: 5%;
+font-size: 6vw;
+font-weight: bold;
+text-align: center;
+cursor: pointer;
+border-bottom: 2px solid #555;
+line-height: 1.5;
+}
+#readAreaText {
+margin: auto; 
+padding: 20px 0;
+pointer-events: none;
+}
+.is-speaking {
+opacity: 0.5;
+cursor: not-allowed !important;
+}
+
+#listenBtn {
+flex: none;
+height: 18vh;
+display: flex;
+justify-content: center;
+align-items: center;
+font-size: 8vw;
+font-weight: bold;
+background-color: #FFD700;
+color: #000000;
+border: none;
+cursor: pointer;
+border-bottom: 2px solid #555;
+}
+#listenBtn.is-speaking {
+background-color: #887300;
+color: #555;
+}
+
+#controls {
+flex: none;
+height: 12vh;
+display: flex;
+width: 100%;
+}
+.nav-btn {
+flex: 1;
+font-size: 5vw;
+font-weight: bold;
+border: none;
+cursor: pointer;
+color: #FFFFFF;
+}
+#prevBtn { background-color: #0055A4; border-right: 2px solid #000; }
+#nextBtn { background-color: #008000; border-left: 2px solid #000; }
+.nav-btn:disabled { background-color: #333; color: #666; }
+
+.hint {
+text-align: center;
+font-size: 2vw;
+color: #888;
+padding: 5px;
+flex: none;
+}
+</style>
+</head>
+<body>
+
+<div id="menuScreen" style="display: flex;">
+<div class="menu-title">請選擇課文</div>
+<button class="menu-btn" onclick="startStory(0)">1. 草船借箭</button>
+<button class="menu-btn" onclick="startStory(1)">2. 武松打虎</button>
+<button class="menu-btn" onclick="startStory(1)">3. 廣州長隆開心之旅</button>
+</div>
+
+<div id="mainScreen" style="display: none;">
+<div id="topBar">
+<span id="storyTitle" style="font-size: 3vw;">課文朗讀</span>
+<button id="homeBtn">⬅️ 返回目錄</button>
+</div>
+<div class="hint">若句子太長，可於文字區向下拉動</div>
+<div id="readArea" class="">
+<div id="readAreaText"></div>
+</div>
+<button id="listenBtn" class="">🔊 聽</button>
+
+<div id="controls">
+<button id="prevBtn" class="nav-btn" disabled="">⬅️ 上一句</button>
+<button id="nextBtn" class="nav-btn">下一句 ➡️</button>
+</div>
+</div>
+
+<script>
+const stories = [
+{
+title: "草船借箭",
+content: [
+"中國有一本著名的古典小說，",
+"名叫《三國演義》。",
+"書中記述了許多精彩的故事，",
+"也描寫了不少性格鮮明的人物。",
+"其中，諸葛亮是一位足智多謀的人物。",
+"他遇事冷靜，善於觀察，",
+"懂得運用智慧解決困難。",
+"有一次，周瑜要求諸葛亮在十天內準備十萬枝箭。",
+"這是一項十分艱難的任務，",
+"因為要在短時間內造出這麼多箭，並不容易。",
+"可是，諸葛亮聽後並沒有慌張。",
+"他對周瑜說：「不用十天，只要三天，",
+"我便可以完成。」",
+"周瑜聽了，心中半信半疑。",
+"他想知道諸葛亮到底有甚麼辦法。",
+"諸葛亮卻不急着解釋，",
+"只是請人準備二十艘船，",
+"又叫人把許多用草紮成的人像放在船上。",
+"船的兩邊都排滿了草人，",
+"遠遠望去，好像站着很多士兵。",
+"到了第三天清晨，江面上起了大霧。",
+"四周白茫茫一片，遠處的景物都看不清楚。",
+"諸葛亮知道時機到了，",
+"便帶着船隊慢慢駛近曹操的軍營。",
+"曹操聽見江面上傳來鼓聲和叫喊聲，",
+"以為敵軍前來進攻。",
+"可是，由於霧很大，",
+"他看不清楚對方有多少人，也不敢派兵出戰。",
+"於是，他命令士兵站在岸邊，",
+"向江上的船隊射箭。",
+"一枝枝箭飛向船隊，紛紛射在草人身上。",
+"不久，船的一邊插滿了箭。",
+"諸葛亮又命令船隊轉向，",
+"讓另一邊的草人也面向曹軍。",
+"曹操的士兵繼續射箭，",
+"更多箭枝射在草人身上。",
+"過了一會兒，諸葛亮看見草人身上已經插滿了箭，",
+"便命令船隊離開。",
+"船隊順着風勢，很快返回營地。",
+"回到營地後，士兵們把草人身上的箭取下來，",
+"果然收集到大量箭枝。",
+"周瑜知道後，十分驚訝。",
+"他沒有想到諸葛亮竟然能在三天內完成任務。",
+"大家都佩服諸葛亮的智慧和冷靜。",
+"這個故事告訴我們，",
+"遇到困難時不要慌張，",
+"要先冷靜思考，仔細觀察環境，並做好準備。",
+"只要善用智慧，想出合適的方法，",
+"便能一步一步解決問題。"
+]
+},
+{
+title: "武松打虎",
+content: [
+"中國有一本著名的古典小說，",
+"名叫《水滸傳》。",
+"書中有一位英雄人物，名叫武松。",
+"他身材高大，性格勇敢。",
+"有一天，武松路過一座名叫景陽岡的大山。",
+"山下有一張告示，提醒行人山上有兇猛的老虎，勸大家不要上山。",
+"武松看了告示後，知道山上有危險，",
+"便拿起棍子，小心地繼續前行。",
+"武松走進樹林後，忽然颳起一陣大風。",
+"接著，一隻又大又兇猛的老虎從樹林裡跳了出來，向武松撲去。",
+"老虎來勢洶洶，武松立刻閃到一旁。",
+"老虎又用長長的尾巴向他掃去，",
+"武松保持冷靜，再次避開了老虎的攻擊。",
+"老虎多次撲空，漸漸失去力氣。",
+"武松看準時機，奮力還擊。",
+"最後，他終於把大老虎打敗了。",
+"山下的村民知道老虎被打敗後，都十分高興。",
+"從此，他們不用再害怕老虎傷人，大家都很感謝武松。",
+"我們閱讀《水滸傳》，不但能欣賞精彩的故事，",
+"還可以學習武松勇敢、冷靜和幫助別人的精神。",
+"不過，在現代生活中，如果我們遇到危險，",
+"應保持冷靜，並立即向成年人或警察求助。"
+]
+},
+{
+title: "廣州長隆開心之旅",
+content: [
+"出發前，我們一家人一起收拾行李。",
+"星期六早上，我們到香港西九龍站，乘坐高速鐵路前往廣州。",
+"高鐵的車廂既寬敞又舒適， ",
+"車程大約一小時，我們便到達廣州南站。 ",
+" 然後，我們轉乘旅遊巴士前往長隆度假區。",
+" 下午，我們到「長隆野生動物世界」遊覽。",
+"我們坐上小火車， ",
+" 看見高高的長頸鹿正在吃樹葉，還有可愛的大熊貓正在吃竹子。",
+"我們高興地拍照留念，弟弟志明興奮地向大熊貓揮手。",
+"到了傍晚，我們去觀看精彩的馬戲表演。",
+"節目內容豐富，觀眾都看得目不轉睛，並熱烈地鼓掌。",
+"晚餐時間，我們到傳統酒樓品嚐廣州美食。",
+"我最喜歡吃皮脆肉嫩的燒乳豬；媽媽則最欣賞香噴噴的石岐乳鴿。",
+"大家都吃得津津有味。",
+"晚上，我們回到酒店房間休息。",
+"房間既寬敞又整潔，床鋪十分柔軟。",
+"遊玩了一整天，我們都感到很疲倦。",
+"弟弟洗澡後，一上床便很快睡着了。",
+"第二天早上，我們在酒店附近的商店逛街，",
+"買了可愛的熊貓毛絨玩具作紀念品。",
+"最後，我們帶着愉快的心情乘車返回香港。",
+"這真是一次難忘的廣州之旅。",
+]
+}
+];
+
+let currentStoryIndex = 0;
+let currentSentenceIndex = 0;
+let availableVoices = [];
+
+const menuScreen = document.getElementById('menuScreen');
+const mainScreen = document.getElementById('mainScreen');
+const readArea = document.getElementById('readArea');
+const readAreaText = document.getElementById('readAreaText');
+const listenBtn = document.getElementById('listenBtn');
+const storyTitleDisplay = document.getElementById('storyTitle');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const homeBtn = document.getElementById('homeBtn');
+
+window.speechSynthesis.onvoiceschanged = () => {
+availableVoices = window.speechSynthesis.getVoices();
+};
+
+function startStory(index) {
+currentStoryIndex = index;
+currentSentenceIndex = 0;
+menuScreen.style.display = 'none';
+mainScreen.style.display = 'flex';
+storyTitleDisplay.innerText = stories[currentStoryIndex].title;
+updateDisplay();
+}
+
+homeBtn.addEventListener('click', () => {
+window.speechSynthesis.cancel();
+mainScreen.style.display = 'none';
+menuScreen.style.display = 'flex';
+});
+
+function updateDisplay() {
+readAreaText.innerText = stories[currentStoryIndex].content[currentSentenceIndex];
+readArea.scrollTop = 0; 
+prevBtn.disabled = currentSentenceIndex === 0;
+nextBtn.disabled = currentSentenceIndex === stories[currentStoryIndex].content.length - 1;
+}
+
+function setSpeakingUI(isSpeaking) {
+if (isSpeaking) {
+readArea.classList.add('is-speaking');
+listenBtn.classList.add('is-speaking');
+} else {
+readArea.classList.remove('is-speaking');
+listenBtn.classList.remove('is-speaking');
+}
+}
+
+function speakCurrentSentence() {
+if (window.speechSynthesis.speaking) return;
+
+const text = stories[currentStoryIndex].content[currentSentenceIndex];
+const utterance = new SpeechSynthesisUtterance(text);
+utterance.lang = 'zh-HK';
+utterance.rate = 0.6; 
+utterance.pitch = 1.1; 
+
+const hkVoices = availableVoices.filter(v => v.lang.includes('HK') || v.lang.includes('yue'));
+if (hkVoices.length > 0) {
+let premiumVoice = hkVoices.find(v => v.name.includes('Premium') || v.name.includes('Enhanced') || v.name.includes('Sin-Ji'));
+utterance.voice = premiumVoice ? premiumVoice : hkVoices[0];
+}
+
+utterance.onstart = () => setSpeakingUI(true);
+utterance.onend = () => setSpeakingUI(false);
+utterance.onerror = () => setSpeakingUI(false);
+
+window.speechSynthesis.speak(utterance);
+}
+
+readArea.addEventListener('click', speakCurrentSentence);
+listenBtn.addEventListener('click', speakCurrentSentence);
+document.addEventListener('keydown', (e) => {
+if (mainScreen.style.display === 'flex' && (e.code === 'Space' || e.code === 'Enter')) {
+e.preventDefault();
+speakCurrentSentence();
+}
+});
+
+prevBtn.addEventListener('click', () => {
+if (currentSentenceIndex > 0) {
+currentSentenceIndex--;
+updateDisplay();
+window.speechSynthesis.cancel();
+setSpeakingUI(false);
+}
+});
+
+nextBtn.addEventListener('click', () => {
+if (currentSentenceIndex < stories[currentStoryIndex].content.length - 1) {
+currentSentenceIndex++;
+updateDisplay();
+window.speechSynthesis.cancel();
+setSpeakingUI(false);
+}
+});
+
+availableVoices = window.speechSynthesis.getVoices();
+</script>
+
+</body></html>
