@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>中文詞語學習寶</title>
+    <style>
+        /* 全局盒模型設定 */
+        * { box-sizing: border-box; }
+
+        /* 基本頁面樣式：採用標楷體及高對比黑白配色，適合特教或兒童閱讀 */
+        body {
+            font-family: "Kaiti TC", "STKaiti", "DFKai-SB", "BiauKai", "標楷體", serif;
+            background-color: #FFF;
+            color: #000;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; 
+            font-weight: normal;
+        }
+
+        /* 頂部標題欄 */
+        header {
+            background-color: #000;
+            color: #FFF;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.8rem;
+        }
+
+        /* 頂部按鈕樣式 */
+        .header-btn {
+            background-color: #6C757D;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1.5rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        /* 課文選擇目錄頁面 */
+        #lesson-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        /* 課文選擇大按鈕 */
+        .lesson-btn {
+            background-color: #FFF;
+            border: 6px solid #000;
+            border-radius: 20px;
+            padding: 25px 40px;
+            font-size: 2.8rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s, transform 0.1s;
+            width: 85%;
+            max-width: 650px;
+            text-align: center;
+        }
+        .lesson-btn:active { 
+            background-color: #E0E0E0; 
+            transform: scale(0.98);
+        }
+
+        /* 詞語網格主頁面 */
+        #main-page {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        /* 詞語卡片網格排版 */
+        #grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 25px;
+            padding-bottom: 50px;
+        }
+
+        /* 單個詞語卡片 */
+        .word-card {
+            background-color: #FFF;
+            border: 3px solid #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            cursor: pointer;
+            border-radius: 20px;
+            transition: background-color 0.15s;
+        }
+
+        .word-card:active { background-color: #F0F0F0; }
+
+        .word-card img {
+            width: 120px;
+            height: 120px;
+            object-fit: contain;
+            margin-bottom: 10px;
+        }
+
+        .word-card span { font-size: 3rem; }
+
+        /* 點擊卡片後的放大檢視覆蓋層 */
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #FFF;
+            z-index: 100;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        #overlay-img { max-width: 45%; max-height: 38vh; margin-bottom: 15px; object-fit: contain; }
+        #overlay-text { font-size: 18vh; line-height: 1.1; margin-bottom: 25px; text-align: center; } 
+
+        /* 覆蓋層操作按鈕組 */
+        .btn-group { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+        .action-btn {
+            padding: 20px 35px;
+            font-size: 2rem;
+            border-radius: 15px;
+            border: 3px solid #000;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        #read-again-btn { background-color: #007BFF; color: white; }
+        #small-challenge-btn { background-color: #28A745; color: white; }
+        #big-challenge-btn { background-color: #FF8C00; color: white; }
+        #overlay-back-btn { background-color: #6C757D; color: white; }
+
+        /* 小測驗/挑戰模式容器 */
+        #quiz-container {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #FFF;
+            z-index: 200;
+            flex-direction: column;
+        }
+
+        .quiz-header {
+            height: 12vh;
+            padding: 0 20px;
+            background: #EEE;
+            border-bottom: 4px solid #000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .quiz-layout { 
+            display: flex; 
+            height: 88vh; 
+            padding: 15px; 
+            gap: 15px;
+        }
+
+        /* 測驗選項框 */
+        .quiz-choice {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center; 
+            align-items: center;
+            border: 12px solid #000;
+            border-radius: 30px;
+            cursor: pointer;
+            overflow: hidden; 
+            padding: 10px;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        .quiz-choice img { 
+            max-width: 90%; 
+            height: 40%; 
+            object-fit: contain; 
+            margin-bottom: 2vh; 
+        }
+
+        /* 答對與答錯的視覺回饋樣式 */
+        .correct-flash { background-color: #D4EDDA !important; border-color: #28A745 !important; }
+        .wrong-flash { background-color: #F8D7DA !important; border-color: #DC3545 !important; }
+    </style>
+</head>
+<body>
+
+    <!-- 課文目錄選擇頁面 -->
+    <div id="lesson-page">
+        <h1 style="font-size: 3rem; margin-bottom: 10px;">📚 請選擇課文</h1>
+        <button class="lesson-btn" onclick="loadLesson('arrow')">🏹 草船借箭</button>
+        <button class="lesson-btn" onclick="loadLesson('tiger')">🐯 武松打虎</button>
+        <button class="lesson-btn" onclick="loadLesson('chimelong')">🐼 廣州長隆開心之旅</button>
+    </div>
+
+    <!-- 詞語列表主頁面 -->
+    <div id="main-page">
+        <header>
+            <span id="lesson-title">草船借箭</span>
+            <button class="header-btn" onclick="showLessons()">返回目錄</button>
+        </header>
+        <div id="grid-container"></div>
+    </div>
+
+    <!-- 單詞放大檢視與發音練習介面 -->
+    <div id="overlay">
+        <img id="overlay-img" src="" alt="">
+        <div id="overlay-text"></div>
+        <div class="btn-group">
+            <button id="overlay-back-btn" class="action-btn" onclick="closeOverlay()">返回</button>
+            <button id="read-again-btn" class="action-btn" onclick="speak(targetWord)">讀多次</button>
+            <button id="small-challenge-btn" class="action-btn" onclick="startQuiz('small')">小挑戰(有圖)</button>
+            <button id="big-challenge-btn" class="action-btn" onclick="startQuiz('big')">大挑戰(無圖)</button>
+        </div>
+    </div>
+
+    <!-- 二選一辨識測驗介面 -->
+    <div id="quiz-container">
+        <div class="quiz-header">
+            <span id="quiz-question-text" style="font-size:2.2rem;">請找出：</span>
+            <button class="action-btn" style="font-size: 1.5rem; padding: 10px 20px;" onclick="closeQuiz()">返回</button>
+        </div>
+        <div class="quiz-layout">
+            <div id="opt-left" class="quiz-choice" onclick="checkAnswer('left')"></div>
+            <div id="opt-right" class="quiz-choice" onclick="checkAnswer('right')"></div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * 課文與詞庫資料庫
+         * 包含原有的「草船借箭」、「武松打虎」以及新增的「廣州長隆開心之旅」
+         */
+        const lessonsData = {
+            "arrow": {
+                title: "草船借箭",
+                words: [
+                    { word: "艱難", img: "difficult.jpg" },
+                    { word: "收集", img: "collect.jpg" },
+                    { word: "冷靜", img: "claim.jpg" },
+                    { word: "慌張", img: "shock.png" },
+                    { word: "精彩", img: "thumbup.jpg" },
+                    { word: "大霧", img: "Mo.jpg" },
+                    { word: "射箭", img: "jin.jpeg" },
+                    { word: "一本", img: "book.jpg" },
+                    { word: "一艘", img: "ship.jpeg" },
+                    { word: "一枝", img: "stick.jpg" },
+                    { word: "一位", img: "person.jpg" }
+                ]
+            },
+            "tiger": {
+                title: "武松打虎",
+                words: [
+                    { word: "勇敢", img: "brave.webp" },
+                    { word: "精彩", img: "clap.webp" },
+                    { word: "危險", img: "danger.jpg" },
+                    { word: "樹林", img: "forest.jpg" },
+                    { word: "高興", img: "happy.png" },
+                    { word: "求助", img: "help.png" },
+                    { word: "打敗", img: "lose.webp" },
+                    { word: "精彩", img: "thumbup.jpg" },
+                    { word: "老虎", img: "tiger.jpg" }
+                ]
+            },
+            "chimelong": {
+                title: "廣州長隆開心之旅",
+                words: [
+                    { 
+                        word: "竹子", 
+                        img: "bamboo.png",
+                        fallbackSvg: `<svg viewBox="0 0 120 120" style="width:100%; height:100%;"><g stroke="#2E7D32" stroke-width="2" fill="#7CB342"><rect x="42" y="15" width="10" height="25" rx="2"/><rect x="42" y="42" width="10" height="28" rx="2"/><rect x="42" y="72" width="10" height="33" rx="2"/><rect x="64" y="25" width="10" height="25" rx="2" transform="rotate(8 64 25)"/><rect x="61" y="52" width="10" height="26" rx="2" transform="rotate(8 61 52)"/><rect x="58" y="80" width="10" height="25" rx="2" transform="rotate(8 58 80)"/></g><path d="M42 35 Q20 20 12 30 Q25 40 42 38 Z" fill="#8BC34A" stroke="#33691E" stroke-width="1.5"/><path d="M42 40 Q22 45 18 58 Q32 55 42 44 Z" fill="#689F38" stroke="#33691E" stroke-width="1.5"/><path d="M73 42 Q95 25 106 32 Q92 45 73 45 Z" fill="#8BC34A" stroke="#33691E" stroke-width="1.5"/><path d="M71 52 Q92 52 102 65 Q85 65 70 55 Z" fill="#689F38" stroke="#33691E" stroke-width="1.5"/></svg>`
+                    },
+                    { word: "舒適", img: "comfort.png" },
+                    { word: "長頸鹿", img: "giraffe.jpg" },
+                    { word: "樹葉", img: "leaf.png" },
+                    { word: "熊貓", img: "panda.jpg" },
+                    { word: "乳豬", img: "roast suckling pig.jpg" },
+                    { word: "乳鴿", img: "squab.jpg" },
+                    { word: "疲倦", img: "tried.jpg" },
+                    { word: "收拾", img: "tidy up.jpg" }
+                ]
+            }
+        };
+
+        let currentWords = [];
+        let targetWord = "";
+        let targetImg = "";
+        let targetFallbackSvg = "";
+        const synth = window.speechSynthesis;
+
+        /**
+         * 產生圖片或備用 SVG 的 HTML 標籤
+         * 優先載入本機圖片檔，若預覽環境找不到檔案且有提供 fallbackSvg，則自動顯示 SVG 圖示
+         */
+        function renderMediaHtml(item, customStyle = "") {
+            const imgSrc = item.img || item.i;
+            const altText = item.word || item.w;
+            const svgCode = item.fallbackSvg || item.svg || "";
+            
+            if (svgCode) {
+                return `<div class="media-wrapper" style="display:flex; justify-content:center; align-items:center; ${customStyle}">
+                    <img src="${imgSrc}" alt="${altText}" style="width:100%; height:100%; object-fit:contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div style="display:none; width:100%; height:100%;">${svgCode}</div>
+                </div>`;
+            }
+            return `<img src="${imgSrc}" alt="${altText}" style="${customStyle}" onerror="this.style.visibility='hidden'">`;
+        }
+
+        /**
+         * 粵語語音朗讀功能
+         * @param {string} text - 需要朗讀的中文詞語
+         */
+        function speak(text) {
+            try {
+                synth.cancel();
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.lang = 'zh-HK';
+                utter.rate = 0.5; // 放慢語速以利學習
+                synth.speak(utter);
+            } catch (e) {
+                console.error("語音合成發生錯誤:", e);
+            }
+        }
+
+        /**
+         * 切換回課文選擇目錄
+         */
+        function showLessons() {
+            synth.cancel();
+            document.getElementById('main-page').style.display = 'none';
+            document.getElementById('lesson-page').style.display = 'flex';
+        }
+
+        /**
+         * 載入指定課文的詞語卡片
+         * @param {string} lessonKey - 課文鍵值 ('arrow', 'tiger', 'chimelong')
+         */
+        function loadLesson(lessonKey) {
+            const lesson = lessonsData[lessonKey];
+            if (!lesson) return;
+
+            currentWords = lesson.words;
+            document.getElementById('lesson-title').innerText = lesson.title;
+            
+            const grid = document.getElementById('grid-container');
+            grid.innerHTML = ''; 
+
+            currentWords.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'word-card';
+                // 渲染圖片（若預覽環境無本機檔案則自動切換至 SVG）
+                div.innerHTML = `${renderMediaHtml(item, "width: 120px; height: 120px; margin-bottom: 10px;")}<span>${item.word}</span>`;
+                div.onclick = () => {
+                    targetWord = item.word;
+                    targetImg = item.img;
+                    targetFallbackSvg = item.fallbackSvg || "";
+                    
+                    const overlayImg = document.getElementById('overlay-img');
+                    let overlayFallback = document.getElementById('overlay-fallback');
+                    if (!overlayFallback) {
+                        overlayFallback = document.createElement('div');
+                        overlayFallback.id = 'overlay-fallback';
+                        overlayFallback.style.cssText = 'width: 35vh; height: 35vh; margin-bottom: 15px; display: none;';
+                        overlayImg.parentNode.insertBefore(overlayFallback, overlayImg.nextSibling);
+                    }
+
+                    overlayImg.style.display = 'block';
+                    overlayImg.style.visibility = 'visible';
+                    overlayFallback.style.display = 'none';
+                    overlayImg.src = item.img;
+                    
+                    overlayImg.onerror = function() { 
+                        if (item.fallbackSvg) {
+                            this.style.display = 'none';
+                            overlayFallback.innerHTML = item.fallbackSvg;
+                            overlayFallback.style.display = 'block';
+                        } else {
+                            this.style.visibility = 'hidden';
+                        }
+                    };
+                    
+                    document.getElementById('overlay-text').innerText = item.word;
+                    document.getElementById('overlay').style.display = 'flex';
+                    speak(item.word);
+                };
+                grid.appendChild(div);
+            });
+
+            document.getElementById('lesson-page').style.display = 'none';
+            document.getElementById('main-page').style.display = 'flex';
+        }
+
+        function closeOverlay() { 
+            synth.cancel();
+            document.getElementById('overlay').style.display = 'none'; 
+        }
+
+        function closeQuiz() { 
+            synth.cancel();
+            document.getElementById('quiz-container').style.display = 'none'; 
+        }
+
+        /**
+         * 啟動二選一小測驗
+         * @param {string} mode - 'small' (有圖片提示) 或 'big' (純文字大字)
+         */
+        function startQuiz(mode) {
+            document.getElementById('quiz-container').style.display = 'flex';
+            
+            // 隨機挑選一個不同的干擾詞語
+            let wrongItem = currentWords[Math.floor(Math.random() * currentWords.length)];
+            while (wrongItem.word === targetWord && currentWords.length > 1) {
+                wrongItem = currentWords[Math.floor(Math.random() * currentWords.length)];
+            }
+
+            // 隨機決定正確答案在左邊或右邊
+            const isTargetLeft = Math.random() > 0.5;
+            const leftEl = document.getElementById('opt-left');
+            const rightEl = document.getElementById('opt-right');
+
+            const left = isTargetLeft ? {w: targetWord, i: targetImg, svg: targetFallbackSvg} : {w: wrongItem.word, i: wrongItem.img, svg: wrongItem.fallbackSvg || ""};
+            const right = isTargetLeft ? {w: wrongItem.word, i: wrongItem.img, svg: wrongItem.fallbackSvg || ""} : {w: targetWord, i: targetImg, svg: targetFallbackSvg};
+
+            // 根據字數動態計算最佳字體大小（支援二字及三字詞如「長頸鹿」）
+            function getOptimalFontSize(word) {
+                const charCount = word.length;
+                const maxVw = 40; 
+                const vwSize = maxVw / charCount; 
+                const maxVh = mode === 'small' ? 35 : 60;
+                return `min(${vwSize}vw, ${maxVh}vh)`;
+            }
+
+            const leftFontSize = getOptimalFontSize(left.w);
+            const rightFontSize = getOptimalFontSize(right.w);
+
+            if (mode === 'small') {
+                leftEl.innerHTML = `${renderMediaHtml(left, "max-width: 90%; height: 40%; margin-bottom: 2vh;")}<span style="font-size: ${leftFontSize}; line-height: 1; white-space: nowrap;">${left.w}</span>`;
+                rightEl.innerHTML = `${renderMediaHtml(right, "max-width: 90%; height: 40%; margin-bottom: 2vh;")}<span style="font-size: ${rightFontSize}; line-height: 1; white-space: nowrap;">${right.w}</span>`;
+            } else {
+                leftEl.innerHTML = `<span style="font-size: ${leftFontSize}; line-height: 1; white-space: nowrap;">${left.w}</span>`;
+                rightEl.innerHTML = `<span style="font-size: ${rightFontSize}; line-height: 1; white-space: nowrap;">${right.w}</span>`;
+            }
+            
+            leftEl.className = 'quiz-choice';
+            rightEl.className = 'quiz-choice';
+            document.getElementById('quiz-question-text').innerText = `請點選「${targetWord}」`;
+            speak(`找出${targetWord}`);
+        }
+
+        /**
+         * 檢查測驗答案
+         * @param {string} side - 'left' 或 'right'
+         */
+        function checkAnswer(side) {
+            const selectedEl = document.getElementById(side === 'left' ? 'opt-left' : 'opt-right');
+            const selectedText = selectedEl.querySelector('span').innerText;
+
+            if (selectedText === targetWord) {
+                speak("答對了");
+                selectedEl.classList.add('correct-flash');
+                setTimeout(() => {
+                    closeQuiz();
+                    closeOverlay();
+                }, 1500);
+            } else {
+                speak("不對，請找出" + targetWord);
+                selectedEl.classList.add('wrong-flash');
+                setTimeout(() => selectedEl.classList.remove('wrong-flash'), 1000);
+            }
+        }
+
+        // 預設開啟時顯示課題選擇目錄，方便直接點選新課題
+        window.onload = function() {
+            showLessons();
+        };
+    </script>
+</body>
+</html>
